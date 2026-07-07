@@ -30,7 +30,7 @@ chmod +x setup.sh run.sh
 
 The portal will be available at `http://localhost:3000`
 
-Backend API runs on `http://localhost:5000/api`
+Backend API runs on `http://localhost:5001/api`
 
 ## Project Structure
 
@@ -131,10 +131,14 @@ Click "Refresh Data" in the portal to ingest the new file.
 
 ## Troubleshooting
 
-### Backend won't start
+### Backend won't start - Port already in use
 ```bash
-pip3 install -r requirements.txt
-python3 app.py
+# Use a different port
+FLASK_PORT=5001 python3 app.py
+
+# Or kill the process using port 5000
+lsof -i :5000  # Find the PID
+kill -9 <PID>  # Kill it
 ```
 
 ### Frontend won't start
