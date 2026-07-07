@@ -1,0 +1,8 @@
+flask
+flask-cors
+flask-sqlalchemy
+sqlalchemy
+pandas
+openpyxl
+python-dotenv
+schedule
