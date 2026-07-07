@@ -21,6 +21,11 @@ export const apiClient = {
     return res.json();
   },
 
+  async getSupplierParts(supplier: string) {
+    const res = await fetch(`${API_BASE}/suppliers/${encodeURIComponent(supplier)}/parts`);
+    return res.json();
+  },
+
   async getDeliveryVariance() {
     const res = await fetch(`${API_BASE}/delivery-variance`);
     return res.json();

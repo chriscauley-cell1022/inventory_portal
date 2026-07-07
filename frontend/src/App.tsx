@@ -92,14 +92,18 @@ function App() {
                 <TrendChart
                   data={trends}
                   title="PO Spend Trend"
+                  xAxisLabel="Week"
+                  yAxisLabel="Spend (€)"
                   lines={[
-                    { dataKey: 'total_po_spend', name: 'Total PO Spend ($)', color: '#8884d8' },
+                    { dataKey: 'total_po_spend', name: 'Total PO Spend (€)', color: '#8884d8' },
                   ]}
                 />
 
                 <TrendChart
                   data={trends}
                   title="PO Quantity Trend"
+                  xAxisLabel="Week"
+                  yAxisLabel="Quantity (Units)"
                   lines={[
                     { dataKey: 'total_po_quantity', name: 'Total PO Quantity', color: '#82ca9d' },
                   ]}
@@ -108,24 +112,13 @@ function App() {
                 <TrendChart
                   data={trends}
                   title="Inventory by Status"
+                  xAxisLabel="Week"
+                  yAxisLabel="Quantity (Units)"
                   lines={[
                     { dataKey: 'total_qty_on_order', name: 'On Order', color: '#ffc658' },
                     { dataKey: 'total_qty_in_transit', name: 'In Transit', color: '#ff7c7c' },
                     { dataKey: 'total_qty_on_hand', name: 'On Hand', color: '#8dd63d' },
                     { dataKey: 'total_qty_called_off', name: 'Called Off', color: '#95de64' },
-                  ]}
-                />
-
-                <TrendChart
-                  data={trends}
-                  title="WoW Percentage Change"
-                  lines={[
-                    { dataKey: 'wow_spend_pct_change', name: 'PO Spend %', color: '#8884d8' },
-                    {
-                      dataKey: 'wow_quantity_pct_change',
-                      name: 'PO Quantity %',
-                      color: '#82ca9d',
-                    },
                   ]}
                 />
               </>

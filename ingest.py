@@ -6,15 +6,46 @@ import re
 from openpyxl import load_workbook
 from models import db, InventorySnapshot, MetricSnapshot, SupplierMetric, DeliveryVariance
 
+# Currency conversion rates (as of 2026)
+SEK_TO_EUR = 0.0945  # Approximate conversion rate
+
 def extract_report_date_from_filename(filename):
-    """Extract date from filename like 'Orebro Inventory Report_DWM-Taulia 080825.xlsx'"""
+    """Extract date from filename"""
+    # Try "as of Month DD, YYYY" format (e.g., "as of February 13, 2026")
+    match = re.search(r'as of\s+(\w+)\s+(\d{1,2}),?\s+(\d{4})', filename)
+    if match:
+        try:
+            month_str = match.group(1)
+            day = match.group(2)
+            year = match.group(3)
+            date_str = f"{month_str} {day} {year}"
+            date = datetime.strptime(date_str, '%B %d %Y').date()
+            if date.year >= 2026:
+                return date
+        except ValueError:
+            pass
+
+    # Try MMDDYY format (e.g., "080825" for Aug 8, 2025)
     match = re.search(r'(\d{6})', filename)
     if match:
         date_str = match.group(1)
         try:
-            return datetime.strptime(date_str, '%m%d%y').date()
+            date = datetime.strptime(date_str, '%m%d%y').date()
+            if date.year >= 2026:
+                return date
         except ValueError:
             pass
+
+    # Try YYYY-MM-DD format
+    match = re.search(r'(\d{4})-(\d{2})-(\d{2})', filename)
+    if match:
+        try:
+            date = datetime.strptime(match.group(0), '%Y-%m-%d').date()
+            if date.year >= 2026:
+                return date
+        except ValueError:
+            pass
+
     return None
 
 def parse_inventory_file(file_path):
@@ -27,7 +58,7 @@ def parse_inventory_file(file_path):
         header_row = None
         for row_idx in range(1, 50):
             row = [cell.value for cell in sheet[row_idx]]
-            if any(v == 'Purchase Order ' for v in row):
+            if any(v == 'Purchase Order ' for v in row) or any(v == 'Purchase Order' for v in row):
                 header_row = row_idx
                 break
 
@@ -41,7 +72,7 @@ def parse_inventory_file(file_path):
         # Extract report date
         report_date = extract_report_date_from_filename(file_path)
         if not report_date:
-            report_date = datetime.now().date()
+            return None, None
 
         return df, report_date
 
@@ -63,12 +94,31 @@ def calculate_delivery_variance(expected_date, confirmed_date):
     except:
         return None
 
+def convert_currency(amount, currency_str):
+    """Convert currency to EUR. Assumes amounts are in EUR or SEK based on currency_str"""
+    if not amount or pd.isna(amount):
+        return 0.0
+
+    try:
+        amount = float(amount)
+        if amount == 0:
+            return 0.0
+
+        # Check if currency indicates SEK
+        if currency_str and isinstance(currency_str, str):
+            if 'SEK' in currency_str.upper():
+                return amount * SEK_TO_EUR
+
+        # Default to EUR
+        return amount
+    except:
+        return 0.0
+
 def ingest_inventory_file(file_path, app):
     """Ingest a single inventory file and update database"""
     df, report_date = parse_inventory_file(file_path)
 
-    if df is None:
-        print(f"Could not parse {file_path}")
+    if df is None or report_date is None:
         return False
 
     print(f"Ingesting {file_path} with report_date {report_date}")
@@ -108,6 +158,9 @@ def ingest_inventory_file(file_path, app):
                     except:
                         return default
 
+                # Get currency column if it exists
+                currency_str = row.get('Currency', 'EUR')
+
                 snapshot = InventorySnapshot(
                     report_date=report_date,
                     po_number=po_number,
@@ -118,12 +171,13 @@ def ingest_inventory_file(file_path, app):
                     confirmed_supplier_ship_date=safe_to_date(row.get('Confirmed Supplier Ship Date')),
                     expected_delivery_date=safe_to_date(row.get('Expected Delivery Date & Actual Delivery Date to DWM Warehouse')),
                     po_quantity=safe_to_float(row.get('PO Quantity')),
-                    total_po_amount=safe_to_float(row.get('Total PO Amount')),
+                    total_po_amount=convert_currency(row.get('Total PO Amount'), currency_str),
                     qty_on_order=safe_to_float(row.get('DWM Qty On Order')),
                     qty_in_transit=safe_to_float(row.get('DWM Qty In Transit')),
                     qty_on_hand=safe_to_float(row.get('DWM Qty On Hand')),
                     qty_called_off_delivered=safe_to_float(row.get('DWM Qty Called Off (Delivered)')),
                     qty_called_off_committed=safe_to_float(row.get('DWM Qty Called Off (Committed)')),
+                    currency='EUR',
                 )
 
                 db.session.add(snapshot)
@@ -149,7 +203,7 @@ def calculate_metrics(report_date, app):
         if not snapshots:
             return
 
-        # Aggregate totals
+        # Aggregate totals (not cumulative - just this week's snapshot)
         total_po_spend = sum(s.total_po_amount or 0 for s in snapshots)
         total_po_quantity = sum(s.po_quantity or 0 for s in snapshots)
         total_qty_on_order = sum(s.qty_on_order or 0 for s in snapshots)
@@ -157,12 +211,9 @@ def calculate_metrics(report_date, app):
         total_qty_on_hand = sum(s.qty_on_hand or 0 for s in snapshots)
         total_qty_called_off = sum((s.qty_called_off_delivered or 0) + (s.qty_called_off_committed or 0) for s in snapshots)
 
-        # Get previous week and month data
+        # Get previous week data
         prev_week_date = report_date - timedelta(days=7)
-        prev_month_date = report_date - timedelta(days=30)
-
         prev_week_snapshots = InventorySnapshot.query.filter_by(report_date=prev_week_date).all()
-        prev_month_snapshots = InventorySnapshot.query.filter_by(report_date=prev_month_date).all()
 
         # Calculate WoW metrics
         wow_spend_change = None
@@ -174,12 +225,17 @@ def calculate_metrics(report_date, app):
             prev_spend = sum(s.total_po_amount or 0 for s in prev_week_snapshots)
             prev_qty = sum(s.po_quantity or 0 for s in prev_week_snapshots)
 
+            wow_spend_change = total_po_spend - prev_spend
             if prev_spend > 0:
-                wow_spend_change = total_po_spend - prev_spend
                 wow_spend_pct_change = (wow_spend_change / prev_spend) * 100
+
+            wow_quantity_change = total_po_quantity - prev_qty
             if prev_qty > 0:
-                wow_quantity_change = total_po_quantity - prev_qty
                 wow_quantity_pct_change = (wow_quantity_change / prev_qty) * 100
+
+        # Get previous month data
+        prev_month_date = report_date - timedelta(days=30)
+        prev_month_snapshots = InventorySnapshot.query.filter_by(report_date=prev_month_date).all()
 
         # Calculate MoM metrics
         mom_spend_change = None
@@ -191,11 +247,12 @@ def calculate_metrics(report_date, app):
             prev_spend = sum(s.total_po_amount or 0 for s in prev_month_snapshots)
             prev_qty = sum(s.po_quantity or 0 for s in prev_month_snapshots)
 
+            mom_spend_change = total_po_spend - prev_spend
             if prev_spend > 0:
-                mom_spend_change = total_po_spend - prev_spend
                 mom_spend_pct_change = (mom_spend_change / prev_spend) * 100
+
+            mom_quantity_change = total_po_quantity - prev_qty
             if prev_qty > 0:
-                mom_quantity_change = total_po_quantity - prev_qty
                 mom_quantity_pct_change = (mom_quantity_change / prev_qty) * 100
 
         # Delete existing metric for this date
@@ -242,6 +299,18 @@ def calculate_metrics(report_date, app):
             variances = [v for v in variances if v is not None]
             avg_variance = sum(variances) / len(variances) if variances else 0
 
+            # Calculate WoW for this supplier
+            prev_supplier_snapshots = [s for s in prev_week_snapshots if s.supplier == supplier] if prev_week_snapshots else []
+            wow_spend = None
+            wow_qty = None
+
+            if prev_supplier_snapshots:
+                prev_supplier_spend = sum(s.total_po_amount or 0 for s in prev_supplier_snapshots)
+                prev_supplier_qty = sum(s.po_quantity or 0 for s in prev_supplier_snapshots)
+
+                wow_spend = supplier_spend - prev_supplier_spend
+                wow_qty = supplier_qty - prev_supplier_qty
+
             # Delete existing supplier metric for this date/supplier
             SupplierMetric.query.filter_by(snapshot_date=report_date, supplier=supplier).delete()
 
@@ -256,6 +325,8 @@ def calculate_metrics(report_date, app):
                 total_qty_called_off=supplier_qty_called_off,
                 avg_delivery_variance_days=avg_variance,
                 po_count=len(supplier_snapshots),
+                wow_spend_change=wow_spend,
+                wow_qty_change=wow_qty,
             )
 
             db.session.add(supplier_metric)
@@ -267,7 +338,12 @@ def ingest_all_files(app, folder_path):
     inventory_files = list(Path(folder_path).glob('**/*.xlsx'))
     inventory_files = [f for f in inventory_files if 'Inventory Report' in f.name or 'Inventory as of' in f.name]
 
-    for file_path in sorted(inventory_files):
-        ingest_inventory_file(str(file_path), app)
+    # Sort by date
+    inventory_files = sorted(inventory_files)
 
-    print(f"Finished ingesting {len(inventory_files)} files")
+    ingested_count = 0
+    for file_path in inventory_files:
+        if ingest_inventory_file(str(file_path), app):
+            ingested_count += 1
+
+    print(f"Finished ingesting {ingested_count} files")

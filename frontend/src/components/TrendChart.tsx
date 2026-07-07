@@ -14,16 +14,25 @@ interface TrendChartProps {
   data: any[];
   title: string;
   lines: Array<{ dataKey: string; name: string; color: string }>;
+  xAxisLabel?: string;
+  yAxisLabel?: string;
 }
 
-const TrendChart: React.FC<TrendChartProps> = ({ data, title, lines }) => (
+const TrendChart: React.FC<TrendChartProps> = ({ data, title, lines, xAxisLabel = 'Date', yAxisLabel = 'Value' }) => (
   <div style={{ width: '100%', height: 400, marginBottom: 40 }}>
     <h3>{title}</h3>
     <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={data} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+      <LineChart data={data} margin={{ top: 5, right: 30, left: 60, bottom: 60 }}>
         <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="date" />
-        <YAxis />
+        <XAxis
+          dataKey="date"
+          label={{ value: xAxisLabel, position: 'insideBottom', offset: -10 }}
+          tick={{ fontSize: 12 }}
+        />
+        <YAxis
+          label={{ value: yAxisLabel, angle: -90, position: 'insideLeft' }}
+          tick={{ fontSize: 12 }}
+        />
         <Tooltip />
         <Legend />
         {lines.map(line => (
