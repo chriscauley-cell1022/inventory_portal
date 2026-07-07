@@ -198,7 +198,7 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
         </div>
       </div>
 
-      <h3>Current Supplier Metrics (Active POs with Quantity > 0)</h3>
+      <h3>Current Supplier Metrics (Active POs with Quantity &gt; 0)</h3>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
@@ -352,7 +352,7 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
             onClick={e => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h2>{selectedSupplier.supplier} - Part Numbers (Active inventory only)</h2>
+              <h2>{selectedSupplier.supplier} - Part Numbers (Active Inventory Only)</h2>
               <button
                 onClick={() => {
                   setSelectedSupplier(null);

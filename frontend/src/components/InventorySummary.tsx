@@ -62,7 +62,7 @@ const InventorySummary: React.FC<InventorySummaryProps> = ({ data }) => {
     <div>
       <h2>Inventory Summary - {data.date}</h2>
 
-      <h3>Current Inventory Levels (Active POs with Quantity > 0)</h3>
+      <h3>Current Inventory Levels (Active POs with Quantity &gt; 0)</h3>
       <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginBottom: 40 }}>
         <MetricCard
           label="Total PO Spend"
