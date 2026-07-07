@@ -259,6 +259,23 @@ def calculate_metrics(report_date, app):
             if prev_qty > 0:
                 mom_quantity_pct_change = (mom_quantity_change / prev_qty) * 100
 
+        # Calculate open PO spend (only on order, in transit, on hand)
+        total_open_qty = total_qty_on_order + total_qty_in_transit + total_qty_on_hand
+        if total_po_quantity > 0:
+            open_po_spend = (total_open_qty / total_po_quantity) * total_po_spend
+        else:
+            open_po_spend = 0
+
+        # Calculate spend by status
+        if total_po_quantity > 0:
+            spend_on_order = (total_qty_on_order / total_po_quantity) * total_po_spend
+            spend_in_transit = (total_qty_in_transit / total_po_quantity) * total_po_spend
+            spend_on_hand = (total_qty_on_hand / total_po_quantity) * total_po_spend
+        else:
+            spend_on_order = 0
+            spend_in_transit = 0
+            spend_on_hand = 0
+
         # Delete existing metric for this date
         MetricSnapshot.query.filter_by(snapshot_date=report_date).delete()
 
@@ -266,10 +283,13 @@ def calculate_metrics(report_date, app):
             snapshot_date=report_date,
             total_po_spend=total_po_spend,
             total_po_quantity=total_po_quantity,
+            open_po_spend=open_po_spend,
             total_qty_on_order=total_qty_on_order,
             total_qty_in_transit=total_qty_in_transit,
             total_qty_on_hand=total_qty_on_hand,
-            total_qty_called_off=total_qty_called_off,
+            spend_on_order=spend_on_order,
+            spend_in_transit=spend_in_transit,
+            spend_on_hand=spend_on_hand,
             wow_spend_change=wow_spend_change,
             wow_spend_pct_change=wow_spend_pct_change,
             wow_quantity_change=wow_quantity_change,

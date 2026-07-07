@@ -25,7 +25,7 @@ const TrendChart: React.FC<TrendChartProps> = ({ data, title, lines, xAxisLabel 
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={data}
-          margin={{ top: 20, right: 30, left: 80, bottom: 80 }}
+          margin={{ top: 20, right: 30, left: 100, bottom: 80 }}
         >
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis
@@ -37,7 +37,14 @@ const TrendChart: React.FC<TrendChartProps> = ({ data, title, lines, xAxisLabel 
           />
           <YAxis
             tick={{ fontSize: 11 }}
-            width={75}
+            width={95}
+            tickFormatter={(value) =>
+              new Intl.NumberFormat('en-US', {
+                notation: 'compact',
+                compactDisplay: 'short',
+                maximumFractionDigits: 0,
+              }).format(value)
+            }
           />
           <Tooltip
             formatter={(value: any) => {
@@ -48,6 +55,13 @@ const TrendChart: React.FC<TrendChartProps> = ({ data, title, lines, xAxisLabel 
                 }).format(value);
               }
               return value;
+            }}
+            labelFormatter={(label) => {
+              const dataPoint = data.find(d => d.date === label);
+              if (dataPoint && dataPoint.wow_pct !== undefined && dataPoint.wow_pct !== null) {
+                return `${label} (${dataPoint.wow_pct > 0 ? '+' : ''}${dataPoint.wow_pct.toFixed(1)}% WoW)`;
+              }
+              return label;
             }}
           />
           <Legend wrapperStyle={{ paddingTop: 20 }} />

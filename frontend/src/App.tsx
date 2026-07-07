@@ -91,33 +91,23 @@ function App() {
               <>
                 <TrendChart
                   data={trends}
-                  title="PO Spend Trend"
+                  title="Open PO Spend Trend (WoW)"
+                  xAxisLabel="Week"
+                  yAxisLabel="Open Spend (€)"
+                  lines={[
+                    { dataKey: 'open_po_spend', name: 'Open PO Spend (€)', color: '#8884d8' },
+                  ]}
+                />
+
+                <TrendChart
+                  data={trends}
+                  title="Inventory Value by Status"
                   xAxisLabel="Week"
                   yAxisLabel="Spend (€)"
                   lines={[
-                    { dataKey: 'total_po_spend', name: 'Total PO Spend (€)', color: '#8884d8' },
-                  ]}
-                />
-
-                <TrendChart
-                  data={trends}
-                  title="PO Quantity Trend"
-                  xAxisLabel="Week"
-                  yAxisLabel="Quantity (Units)"
-                  lines={[
-                    { dataKey: 'total_po_quantity', name: 'Total PO Quantity', color: '#82ca9d' },
-                  ]}
-                />
-
-                <TrendChart
-                  data={trends}
-                  title="Inventory by Status"
-                  xAxisLabel="Week"
-                  yAxisLabel="Quantity (Units)"
-                  lines={[
-                    { dataKey: 'total_qty_on_order', name: 'On Order', color: '#ffc658' },
-                    { dataKey: 'total_qty_in_transit', name: 'In Transit', color: '#ff7c7c' },
-                    { dataKey: 'total_qty_on_hand', name: 'On Hand', color: '#8dd63d' },
+                    { dataKey: 'spend_on_order', name: 'On Order', color: '#ffc658' },
+                    { dataKey: 'spend_in_transit', name: 'In Transit', color: '#ff7c7c' },
+                    { dataKey: 'spend_on_hand', name: 'On Hand', color: '#8dd63d' },
                   ]}
                 />
               </>

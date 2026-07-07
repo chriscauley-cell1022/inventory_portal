@@ -4,13 +4,13 @@ interface SummaryData {
   date: string;
   total_po_spend: number;
   total_po_quantity: number;
+  open_po_spend: number;
   total_qty_on_order: number;
   total_qty_in_transit: number;
   total_qty_on_hand: number;
-  wow_spend_change: number;
-  wow_spend_pct_change: number;
-  wow_quantity_change: number;
-  wow_quantity_pct_change: number;
+  spend_on_order: number;
+  spend_in_transit: number;
+  spend_on_hand: number;
 }
 
 interface InventorySummaryProps {
@@ -21,13 +21,6 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'EUR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value || 0);
-};
-
-const formatNumber = (value: number) => {
-  return new Intl.NumberFormat('en-US', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(value || 0);
@@ -53,46 +46,30 @@ const MetricCard: React.FC<{
 const InventorySummary: React.FC<InventorySummaryProps> = ({ data }) => {
   if (!data) return <div>No data available</div>;
 
-  // Calculate total inventory value (excluding called off)
-  const totalInventorySpend =
-    ((data.total_qty_on_order + data.total_qty_in_transit + data.total_qty_on_hand) / data.total_po_quantity) *
-    data.total_po_spend;
+  // Total inventory value
+  const totalInventoryValue = (data.spend_on_order || 0) + (data.spend_in_transit || 0) + (data.spend_on_hand || 0);
 
   return (
     <div>
       <h2>Inventory Summary - {data.date}</h2>
 
-      <h3>Current Inventory Levels (Active POs with Quantity &gt; 0)</h3>
+      <h3>Inventory Value Breakdown</h3>
       <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginBottom: 40 }}>
         <MetricCard
-          label="Total PO Spend"
-          value={formatCurrency(data.total_po_spend)}
-        />
-        <MetricCard label="Total PO Quantity" value={formatNumber(data.total_po_quantity)} />
-        <MetricCard label="On Order" value={formatNumber(data.total_qty_on_order)} />
-        <MetricCard label="In Transit" value={formatNumber(data.total_qty_in_transit)} />
-        <MetricCard label="On Hand" value={formatNumber(data.total_qty_on_hand)} />
-      </div>
-
-      <h3>Inventory Value Breakdown</h3>
-      <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-        <MetricCard
-          label={`On Order (${formatNumber(data.total_qty_on_order)} units)`}
-          value={formatCurrency(
-            (data.total_qty_on_order / data.total_po_quantity) * data.total_po_spend
-          )}
+          label="Total Inventory Value"
+          value={formatCurrency(totalInventoryValue)}
         />
         <MetricCard
-          label={`In Transit (${formatNumber(data.total_qty_in_transit)} units)`}
-          value={formatCurrency(
-            (data.total_qty_in_transit / data.total_po_quantity) * data.total_po_spend
-          )}
+          label={`On Order`}
+          value={formatCurrency(data.spend_on_order || 0)}
         />
         <MetricCard
-          label={`On Hand (${formatNumber(data.total_qty_on_hand)} units)`}
-          value={formatCurrency(
-            (data.total_qty_on_hand / data.total_po_quantity) * data.total_po_spend
-          )}
+          label={`In Transit`}
+          value={formatCurrency(data.spend_in_transit || 0)}
+        />
+        <MetricCard
+          label={`On Hand`}
+          value={formatCurrency(data.spend_on_hand || 0)}
         />
       </div>
     </div>

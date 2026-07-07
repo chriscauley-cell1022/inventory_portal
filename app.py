@@ -36,18 +36,13 @@ def get_summary():
         'date': str(latest_date),
         'total_po_spend': round(metric.total_po_spend or 0, 2),
         'total_po_quantity': metric.total_po_quantity or 0,
+        'open_po_spend': round(metric.open_po_spend or 0, 2),
         'total_qty_on_order': metric.total_qty_on_order or 0,
         'total_qty_in_transit': metric.total_qty_in_transit or 0,
         'total_qty_on_hand': metric.total_qty_on_hand or 0,
-        'total_qty_called_off': metric.total_qty_called_off or 0,
-        'wow_spend_change': round(metric.wow_spend_change or 0, 2),
-        'wow_spend_pct_change': round(metric.wow_spend_pct_change, 1) if metric.wow_spend_pct_change else None,
-        'wow_quantity_change': metric.wow_quantity_change or 0,
-        'wow_quantity_pct_change': round(metric.wow_quantity_pct_change, 1) if metric.wow_quantity_pct_change else None,
-        'mom_spend_change': round(metric.mom_spend_change or 0, 2),
-        'mom_spend_pct_change': round(metric.mom_spend_pct_change, 1) if metric.mom_spend_pct_change else None,
-        'mom_quantity_change': metric.mom_quantity_change or 0,
-        'mom_quantity_pct_change': round(metric.mom_quantity_pct_change, 1) if metric.mom_quantity_pct_change else None,
+        'spend_on_order': round(metric.spend_on_order or 0, 2),
+        'spend_in_transit': round(metric.spend_in_transit or 0, 2),
+        'spend_on_hand': round(metric.spend_on_hand or 0, 2),
     })
 
 @app.route('/api/trends', methods=['GET'])
@@ -56,15 +51,25 @@ def get_trends():
     metrics = MetricSnapshot.query.order_by(MetricSnapshot.snapshot_date).all()
 
     data = []
-    for m in metrics:
+    for i, m in enumerate(metrics):
+        # Calculate WoW change for open PO spend
+        wow_pct = None
+        if i > 0:
+            prev_m = metrics[i - 1]
+            if prev_m.open_po_spend and prev_m.open_po_spend > 0:
+                wow_change = (m.open_po_spend or 0) - prev_m.open_po_spend
+                wow_pct = (wow_change / prev_m.open_po_spend) * 100
+
         data.append({
             'date': str(m.snapshot_date),
-            'total_po_spend': round(m.total_po_spend or 0, 2),
-            'total_po_quantity': m.total_po_quantity or 0,
+            'open_po_spend': round(m.open_po_spend or 0, 2),
+            'spend_on_order': round(m.spend_on_order or 0, 2),
+            'spend_in_transit': round(m.spend_in_transit or 0, 2),
+            'spend_on_hand': round(m.spend_on_hand or 0, 2),
             'total_qty_on_order': m.total_qty_on_order or 0,
             'total_qty_in_transit': m.total_qty_in_transit or 0,
             'total_qty_on_hand': m.total_qty_on_hand or 0,
-            'total_qty_called_off': m.total_qty_called_off or 0,
+            'wow_pct': round(wow_pct, 1) if wow_pct is not None else None,
         })
 
     return jsonify(data)

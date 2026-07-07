@@ -127,84 +127,13 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
     <div>
       <h2>Supplier Analysis</h2>
 
-      <h3>Week-over-Week Spend Change by Supplier</h3>
-      <div style={{ width: '100%', marginBottom: 50 }}>
-        <div style={{ width: '100%', height: 400 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 80, bottom: 100 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="supplier"
-                angle={-45}
-                textAnchor="end"
-                height={120}
-                tick={{ fontSize: 11 }}
-              />
-              <YAxis
-                tick={{ fontSize: 11 }}
-                width={75}
-              />
-              <Tooltip
-                formatter={(value: any) => formatCurrency(value as number)}
-                labelFormatter={(label) => `${label}`}
-              />
-              <Legend wrapperStyle={{ paddingTop: 20 }} />
-              <Bar dataKey="wow_spend_change" fill="#8884d8" name="WoW Spend Change (€)" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-        <div style={{ fontSize: 12, color: '#666', marginTop: 10 }}>
-          <div style={{ marginBottom: 5 }}>
-            <strong>Y-Axis:</strong> Spend Change (€)
-          </div>
-          <div>
-            <strong>X-Axis:</strong> Supplier
-          </div>
-        </div>
-      </div>
-
-      <h3>Week-over-Week Quantity Change by Supplier</h3>
-      <div style={{ width: '100%', marginBottom: 50 }}>
-        <div style={{ width: '100%', height: 400 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 80, bottom: 100 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="supplier"
-                angle={-45}
-                textAnchor="end"
-                height={120}
-                tick={{ fontSize: 11 }}
-              />
-              <YAxis
-                tick={{ fontSize: 11 }}
-                width={75}
-              />
-              <Tooltip
-                formatter={(value: any) => formatNumber(value as number)}
-              />
-              <Legend wrapperStyle={{ paddingTop: 20 }} />
-              <Bar dataKey="wow_qty_change" fill="#82ca9d" name="WoW Quantity Change (Units)" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-        <div style={{ fontSize: 12, color: '#666', marginTop: 10 }}>
-          <div style={{ marginBottom: 5 }}>
-            <strong>Y-Axis:</strong> Quantity Change (Units)
-          </div>
-          <div>
-            <strong>X-Axis:</strong> Supplier
-          </div>
-        </div>
-      </div>
-
-      <h3>Current Supplier Metrics (Active POs with Quantity &gt; 0)</h3>
+      <h3>Current Supplier Metrics</h3>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ backgroundColor: '#f5f5f5' }}>
               <th style={{ padding: 12, textAlign: 'left', borderBottom: '2px solid #ddd', cursor: 'pointer' }}>
-                Supplier (click to drill down)
+                Supplier
               </th>
               <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd' }}>
                 PO Spend (€)
@@ -352,7 +281,7 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
             onClick={e => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h2>{selectedSupplier.supplier} - Part Numbers (Active Inventory Only)</h2>
+              <h2>{selectedSupplier.supplier} - Part Numbers</h2>
               <button
                 onClick={() => {
                   setSelectedSupplier(null);
@@ -397,7 +326,7 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                         Total Amount (€)
                       </th>
                       <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd' }}>
-                        POs
+                        Total Qty
                       </th>
                     </tr>
                   </thead>
