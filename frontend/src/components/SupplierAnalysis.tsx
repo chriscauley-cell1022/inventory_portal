@@ -18,7 +18,6 @@ interface Supplier {
   total_qty_on_order: number;
   total_qty_in_transit: number;
   total_qty_on_hand: number;
-  total_qty_called_off: number;
   avg_delivery_variance_days: number;
   po_count: number;
   wow_spend_change: number;
@@ -38,6 +37,16 @@ interface Part {
   po_quantity: number;
 }
 
+interface AggregatedPart {
+  part_number: string;
+  part_description: string;
+  qty_on_order: number;
+  qty_in_transit: number;
+  qty_on_hand: number;
+  total_amount: number;
+  po_count: number;
+}
+
 interface SupplierAnalysisProps {
   suppliers: Supplier[];
 }
@@ -47,20 +56,56 @@ const formatCurrency = (value: number) => {
     style: 'currency',
     currency: 'EUR',
     minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value || 0);
+};
+
+const formatNumber = (value: number) => {
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(value || 0);
 };
 
 const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
-  const [parts, setParts] = useState<Part[]>([]);
+  const [parts, setParts] = useState<AggregatedPart[]>([]);
   const [loadingParts, setLoadingParts] = useState(false);
 
   const handleSupplierClick = async (supplier: Supplier) => {
     setSelectedSupplier(supplier);
     setLoadingParts(true);
     try {
-      const partsData = await apiClient.getSupplierParts(supplier.supplier);
-      setParts(partsData);
+      const partsData: Part[] = await apiClient.getSupplierParts(supplier.supplier);
+
+      // Filter to only parts with qty > 0 and aggregate
+      const aggregated: { [key: string]: AggregatedPart } = {};
+
+      partsData.forEach(part => {
+        const qty = (part.qty_on_order || 0) + (part.qty_in_transit || 0) + (part.qty_on_hand || 0);
+        if (qty > 0) {
+          const key = part.part_number || 'Unknown';
+          if (aggregated[key]) {
+            aggregated[key].qty_on_order += part.qty_on_order || 0;
+            aggregated[key].qty_in_transit += part.qty_in_transit || 0;
+            aggregated[key].qty_on_hand += part.qty_on_hand || 0;
+            aggregated[key].total_amount += part.total_po_amount || 0;
+            aggregated[key].po_count += 1;
+          } else {
+            aggregated[key] = {
+              part_number: part.part_number || 'Unknown',
+              part_description: part.part_description || '',
+              qty_on_order: part.qty_on_order || 0,
+              qty_in_transit: part.qty_in_transit || 0,
+              qty_on_hand: part.qty_on_hand || 0,
+              total_amount: part.total_po_amount || 0,
+              po_count: 1,
+            };
+          }
+        }
+      });
+
+      setParts(Object.values(aggregated).sort((a, b) => b.total_amount - a.total_amount));
     } catch (err) {
       console.error('Error loading parts:', err);
     } finally {
@@ -72,53 +117,90 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
     return <div>No supplier data available</div>;
   }
 
+  // Chart data with WoW labels
+  const chartData = suppliers.map(s => ({
+    ...s,
+    wowLabel: `${s.wow_spend_pct_change ? (s.wow_spend_pct_change > 0 ? '+' : '') + s.wow_spend_pct_change.toFixed(1) + '%' : 'N/A'}`
+  }));
+
   return (
     <div>
       <h2>Supplier Analysis</h2>
 
-      <h3>WoW Spend Change by Supplier</h3>
-      <div style={{ width: '100%', height: 400, marginBottom: 40 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={suppliers}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis
-              dataKey="supplier"
-              angle={-45}
-              textAnchor="end"
-              height={80}
-              tick={{ fontSize: 12 }}
-            />
-            <YAxis label={{ value: 'Spend Change (€)', angle: -90, position: 'insideLeft' }} />
-            <Tooltip formatter={(value: any) => formatCurrency(value as number)} />
-            <Legend />
-            <Bar dataKey="wow_spend_change" fill="#8884d8" name="WoW Spend Change (€)" />
-          </BarChart>
-        </ResponsiveContainer>
+      <h3>Week-over-Week Spend Change by Supplier</h3>
+      <div style={{ width: '100%', marginBottom: 50 }}>
+        <div style={{ width: '100%', height: 400 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 80, bottom: 100 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis
+                dataKey="supplier"
+                angle={-45}
+                textAnchor="end"
+                height={120}
+                tick={{ fontSize: 11 }}
+              />
+              <YAxis
+                tick={{ fontSize: 11 }}
+                width={75}
+              />
+              <Tooltip
+                formatter={(value: any) => formatCurrency(value as number)}
+                labelFormatter={(label) => `${label}`}
+              />
+              <Legend wrapperStyle={{ paddingTop: 20 }} />
+              <Bar dataKey="wow_spend_change" fill="#8884d8" name="WoW Spend Change (€)" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <div style={{ fontSize: 12, color: '#666', marginTop: 10 }}>
+          <div style={{ marginBottom: 5 }}>
+            <strong>Y-Axis:</strong> Spend Change (€)
+          </div>
+          <div>
+            <strong>X-Axis:</strong> Supplier
+          </div>
+        </div>
       </div>
 
-      <h3>WoW Quantity Change by Supplier</h3>
-      <div style={{ width: '100%', height: 400, marginBottom: 40 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={suppliers}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis
-              dataKey="supplier"
-              angle={-45}
-              textAnchor="end"
-              height={80}
-              tick={{ fontSize: 12 }}
-            />
-            <YAxis label={{ value: 'Quantity Change', angle: -90, position: 'insideLeft' }} />
-            <Tooltip />
-            <Legend />
-            <Bar dataKey="wow_qty_change" fill="#82ca9d" name="WoW Quantity Change" />
-          </BarChart>
-        </ResponsiveContainer>
+      <h3>Week-over-Week Quantity Change by Supplier</h3>
+      <div style={{ width: '100%', marginBottom: 50 }}>
+        <div style={{ width: '100%', height: 400 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 80, bottom: 100 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis
+                dataKey="supplier"
+                angle={-45}
+                textAnchor="end"
+                height={120}
+                tick={{ fontSize: 11 }}
+              />
+              <YAxis
+                tick={{ fontSize: 11 }}
+                width={75}
+              />
+              <Tooltip
+                formatter={(value: any) => formatNumber(value as number)}
+              />
+              <Legend wrapperStyle={{ paddingTop: 20 }} />
+              <Bar dataKey="wow_qty_change" fill="#82ca9d" name="WoW Quantity Change (Units)" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <div style={{ fontSize: 12, color: '#666', marginTop: 10 }}>
+          <div style={{ marginBottom: 5 }}>
+            <strong>Y-Axis:</strong> Quantity Change (Units)
+          </div>
+          <div>
+            <strong>X-Axis:</strong> Supplier
+          </div>
+        </div>
       </div>
 
-      <h3>Current Supplier Metrics</h3>
+      <h3>Current Supplier Metrics (Active POs with Quantity > 0)</h3>
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ backgroundColor: '#f5f5f5' }}>
               <th style={{ padding: 12, textAlign: 'left', borderBottom: '2px solid #ddd', cursor: 'pointer' }}>
@@ -128,7 +210,7 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                 PO Spend (€)
               </th>
               <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd' }}>
-                Spend WoW Change (€)
+                Spend WoW (€)
               </th>
               <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd' }}>
                 Spend WoW %
@@ -137,7 +219,7 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                 Quantity
               </th>
               <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd' }}>
-                Qty WoW Change
+                Qty WoW
               </th>
               <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd' }}>
                 Qty WoW %
@@ -174,7 +256,7 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                     padding: 12,
                     textAlign: 'right',
                     borderBottom: '1px solid #eee',
-                    color: (s.wow_spend_change || 0) > 0 ? '#4caf50' : '#f44336',
+                    color: (s.wow_spend_change || 0) > 0 ? '#4caf50' : (s.wow_spend_change || 0) < 0 ? '#f44336' : '#000',
                   }}
                 >
                   {formatCurrency(s.wow_spend_change || 0)}
@@ -184,42 +266,42 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                     padding: 12,
                     textAlign: 'right',
                     borderBottom: '1px solid #eee',
-                    color: (s.wow_spend_pct_change || 0) > 0 ? '#4caf50' : '#f44336',
+                    color: (s.wow_spend_pct_change || 0) > 0 ? '#4caf50' : (s.wow_spend_pct_change || 0) < 0 ? '#f44336' : '#000',
                   }}
                 >
                   {s.wow_spend_pct_change ? `${s.wow_spend_pct_change > 0 ? '+' : ''}${s.wow_spend_pct_change.toFixed(1)}%` : 'N/A'}
                 </td>
                 <td style={{ padding: 12, textAlign: 'right', borderBottom: '1px solid #eee' }}>
-                  {s.total_po_quantity.toLocaleString()}
+                  {formatNumber(s.total_po_quantity)}
                 </td>
                 <td
                   style={{
                     padding: 12,
                     textAlign: 'right',
                     borderBottom: '1px solid #eee',
-                    color: (s.wow_qty_change || 0) > 0 ? '#4caf50' : '#f44336',
+                    color: (s.wow_qty_change || 0) > 0 ? '#4caf50' : (s.wow_qty_change || 0) < 0 ? '#f44336' : '#000',
                   }}
                 >
-                  {s.wow_qty_change}
+                  {formatNumber(s.wow_qty_change || 0)}
                 </td>
                 <td
                   style={{
                     padding: 12,
                     textAlign: 'right',
                     borderBottom: '1px solid #eee',
-                    color: (s.wow_qty_pct_change || 0) > 0 ? '#4caf50' : '#f44336',
+                    color: (s.wow_qty_pct_change || 0) > 0 ? '#4caf50' : (s.wow_qty_pct_change || 0) < 0 ? '#f44336' : '#000',
                   }}
                 >
                   {s.wow_qty_pct_change ? `${s.wow_qty_pct_change > 0 ? '+' : ''}${s.wow_qty_pct_change.toFixed(1)}%` : 'N/A'}
                 </td>
                 <td style={{ padding: 12, textAlign: 'right', borderBottom: '1px solid #eee' }}>
-                  {s.total_qty_on_order.toLocaleString()}
+                  {formatNumber(s.total_qty_on_order)}
                 </td>
                 <td style={{ padding: 12, textAlign: 'right', borderBottom: '1px solid #eee' }}>
-                  {s.total_qty_in_transit.toLocaleString()}
+                  {formatNumber(s.total_qty_in_transit)}
                 </td>
                 <td style={{ padding: 12, textAlign: 'right', borderBottom: '1px solid #eee' }}>
-                  {s.total_qty_on_hand.toLocaleString()}
+                  {formatNumber(s.total_qty_on_hand)}
                 </td>
                 <td
                   style={{
@@ -270,7 +352,7 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
             onClick={e => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h2>{selectedSupplier.supplier} - Part Numbers</h2>
+              <h2>{selectedSupplier.supplier} - Part Numbers (Active inventory only)</h2>
               <button
                 onClick={() => {
                   setSelectedSupplier(null);
@@ -293,7 +375,7 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
               <div>Loading parts...</div>
             ) : (
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead>
                     <tr style={{ backgroundColor: '#f5f5f5' }}>
                       <th style={{ padding: 12, textAlign: 'left', borderBottom: '2px solid #ddd' }}>
@@ -314,28 +396,34 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                       <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd' }}>
                         Total Amount (€)
                       </th>
+                      <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd' }}>
+                        POs
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {parts.map((p, idx) => (
                       <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? '#f9f9f9' : 'white' }}>
-                        <td style={{ padding: 12, borderBottom: '1px solid #eee', fontSize: 12 }}>
+                        <td style={{ padding: 12, borderBottom: '1px solid #eee', fontSize: 11 }}>
                           {p.part_number}
                         </td>
-                        <td style={{ padding: 12, borderBottom: '1px solid #eee', fontSize: 12 }}>
+                        <td style={{ padding: 12, borderBottom: '1px solid #eee', fontSize: 11 }}>
                           {p.part_description}
                         </td>
                         <td style={{ padding: 12, textAlign: 'right', borderBottom: '1px solid #eee' }}>
-                          {p.qty_on_order.toLocaleString()}
+                          {formatNumber(p.qty_on_order)}
                         </td>
                         <td style={{ padding: 12, textAlign: 'right', borderBottom: '1px solid #eee' }}>
-                          {p.qty_in_transit.toLocaleString()}
+                          {formatNumber(p.qty_in_transit)}
                         </td>
                         <td style={{ padding: 12, textAlign: 'right', borderBottom: '1px solid #eee' }}>
-                          {p.qty_on_hand.toLocaleString()}
+                          {formatNumber(p.qty_on_hand)}
                         </td>
                         <td style={{ padding: 12, textAlign: 'right', borderBottom: '1px solid #eee' }}>
-                          {formatCurrency(p.total_po_amount)}
+                          {formatCurrency(p.total_amount)}
+                        </td>
+                        <td style={{ padding: 12, textAlign: 'right', borderBottom: '1px solid #eee' }}>
+                          {p.po_count}
                         </td>
                       </tr>
                     ))}

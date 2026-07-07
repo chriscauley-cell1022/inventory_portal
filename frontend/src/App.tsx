@@ -118,7 +118,6 @@ function App() {
                     { dataKey: 'total_qty_on_order', name: 'On Order', color: '#ffc658' },
                     { dataKey: 'total_qty_in_transit', name: 'In Transit', color: '#ff7c7c' },
                     { dataKey: 'total_qty_on_hand', name: 'On Hand', color: '#8dd63d' },
-                    { dataKey: 'total_qty_called_off', name: 'Called Off', color: '#95de64' },
                   ]}
                 />
               </>

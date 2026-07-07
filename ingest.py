@@ -197,19 +197,23 @@ def ingest_inventory_file(file_path, app):
 def calculate_metrics(report_date, app):
     """Calculate aggregated metrics for a given date"""
     with app.app_context():
-        # Get all snapshots for this date
+        # Get all snapshots for this date with PO quantity > 0
         snapshots = InventorySnapshot.query.filter_by(report_date=report_date).all()
+        # Filter to only include records with PO quantity > 0
+        snapshots = [s for s in snapshots if s.po_quantity and s.po_quantity > 0]
 
         if not snapshots:
             return
 
         # Aggregate totals (not cumulative - just this week's snapshot)
+        # Only count POs with quantity > 0
         total_po_spend = sum(s.total_po_amount or 0 for s in snapshots)
         total_po_quantity = sum(s.po_quantity or 0 for s in snapshots)
         total_qty_on_order = sum(s.qty_on_order or 0 for s in snapshots)
         total_qty_in_transit = sum(s.qty_in_transit or 0 for s in snapshots)
         total_qty_on_hand = sum(s.qty_on_hand or 0 for s in snapshots)
-        total_qty_called_off = sum((s.qty_called_off_delivered or 0) + (s.qty_called_off_committed or 0) for s in snapshots)
+        # Don't include called-off inventory
+        total_qty_called_off = 0
 
         # Get previous week data
         prev_week_date = report_date - timedelta(days=7)
@@ -289,7 +293,8 @@ def calculate_metrics(report_date, app):
             supplier_qty_on_order = sum(s.qty_on_order or 0 for s in supplier_snapshots)
             supplier_qty_in_transit = sum(s.qty_in_transit or 0 for s in supplier_snapshots)
             supplier_qty_on_hand = sum(s.qty_on_hand or 0 for s in supplier_snapshots)
-            supplier_qty_called_off = sum((s.qty_called_off_delivered or 0) + (s.qty_called_off_committed or 0) for s in supplier_snapshots)
+            # Don't include called-off inventory
+            supplier_qty_called_off = 0
 
             # Calculate average delivery variance
             variances = [
