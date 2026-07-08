@@ -231,8 +231,8 @@ def calculate_metrics(report_date, app):
         total_qty_on_order = sum(s.qty_on_order or 0 for s in snapshots)
         total_qty_in_transit = sum(s.qty_in_transit or 0 for s in snapshots)
         total_qty_on_hand = sum(s.qty_on_hand or 0 for s in snapshots)
-        # Don't include called-off inventory
-        total_qty_called_off = 0
+        # Called-off = original PO quantity minus remaining open quantities
+        total_qty_called_off = max(0, total_po_quantity - (total_qty_on_order + total_qty_in_transit + total_qty_on_hand))
 
         # Get previous week data
         prev_week_date = report_date - timedelta(days=7)
