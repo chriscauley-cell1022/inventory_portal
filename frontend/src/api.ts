@@ -1,4 +1,4 @@
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5555/api';
+const API_BASE = process.env.REACT_APP_API_URL || '/api';
 
 export const apiClient = {
   async getSummary() {
