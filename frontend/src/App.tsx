@@ -105,7 +105,7 @@ function App() {
     <div className="App">
       <header style={{ backgroundColor: '#1976d2', color: 'white', padding: 20, position: 'relative', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
         <div style={{ position: 'absolute', left: 20, top: 15, height: 90 }}>
-          <img src="/sap_taulia_r_grad_blue.png" alt="SAP Taulia" style={{ height: '100%', objectFit: 'contain' }} />
+          <img src="/SAP_Taulia_R_grad_blu.png" alt="SAP Taulia" style={{ height: '100%', objectFit: 'contain' }} />
         </div>
         <div style={{ textAlign: 'center' }}>
           <h1 style={{ margin: '0 0 8px 0' }}>Inventory & Supplier Analysis</h1>
