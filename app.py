@@ -19,24 +19,6 @@ db.init_app(app)
 
 with app.app_context():
     db.create_all()
-    # Auto-ingest data on startup if database is empty and data folder exists
-    latest_date = db.session.query(func.max(MetricSnapshot.snapshot_date)).scalar()
-    print(f"[STARTUP] Checking database... latest_date={latest_date}")
-    if not latest_date:
-        data_folder = os.environ.get('DATA_FOLDER', os.path.join(basedir, 'OrebroSRD'))
-        print(f"[STARTUP] Database empty, attempting auto-ingest from: {data_folder}")
-        print(f"[STARTUP] Folder exists: {os.path.exists(data_folder)}")
-        if os.path.exists(data_folder):
-            try:
-                print(f"[STARTUP] Starting ingest...")
-                ingest_all_files(app, data_folder)
-                print(f"[STARTUP] Auto-ingested data from {data_folder}")
-            except Exception as e:
-                print(f"[STARTUP] Auto-ingest failed: {type(e).__name__}: {e}")
-                import traceback
-                traceback.print_exc()
-        else:
-            print(f"[STARTUP] Data folder not found at {data_folder}")
 
 @app.route('/api/health', methods=['GET'])
 def health():
@@ -207,10 +189,9 @@ def get_delivery_variance():
 
     return jsonify(data)
 
-@app.route('/api/ingest', methods=['POST'])
+@app.route('/api/ingest', methods=['POST', 'GET'])
 def trigger_ingest():
     """Manually trigger data ingestion from folder"""
-    # Allow folder path to be specified via environment variable or request
     default_folder = os.environ.get('DATA_FOLDER', os.path.join(basedir, 'OrebroSRD'))
     folder_path = request.json.get('folder_path', default_folder) if request.json else default_folder
 
@@ -219,6 +200,19 @@ def trigger_ingest():
         return jsonify({'status': 'success', 'message': 'Data ingestion completed', 'folder': folder_path})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e), 'attempted_folder': folder_path}), 500
+
+@app.route('/api/data-status', methods=['GET'])
+def check_data_status():
+    """Check if data has been ingested"""
+    latest_date = db.session.query(func.max(MetricSnapshot.snapshot_date)).scalar()
+    supplier_count = db.session.query(func.count(SupplierMetric.id)).scalar()
+
+    return jsonify({
+        'has_data': latest_date is not None,
+        'latest_date': str(latest_date) if latest_date else None,
+        'supplier_count': supplier_count,
+        'message': 'Ready to ingest' if not latest_date else f'Data loaded as of {latest_date}'
+    })
 
 @app.route('/api/inventory/by-status', methods=['GET'])
 def get_inventory_by_status():
