@@ -33,6 +33,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [databases, setDatabases] = useState<Database[]>([]);
+  const [selectedSnapshotDate, setSelectedSnapshotDate] = useState<string | null>(null);
 
   useEffect(() => {
     loadDatabases();
@@ -72,12 +73,19 @@ function App() {
 
   const handleDatabaseSwitch = async (dbPath: string) => {
     if (dbPath === 'current') {
-      window.location.href = '/';
+      setSelectedSnapshotDate(null);
       return;
     }
+
+    // Extract date from the selected database option
+    const selectedDb = databases.find(db => db.path === dbPath);
+    if (selectedDb) {
+      setSelectedSnapshotDate(selectedDb.date);
+    }
+
     // For switching to historical databases, would need to implement backend support
     // For now, this is a UI placeholder showing available snapshots
-    alert(`Database switching would require backend support. Available snapshot: ${dbPath}`);
+    // alert(`Database switching would require backend support. Available snapshot: ${dbPath}`);
   };
 
   const handleIngest = async () => {
@@ -98,7 +106,7 @@ function App() {
       <header style={{ backgroundColor: '#1976d2', color: 'white', padding: 20, position: 'relative', textAlign: 'center' }}>
         <h1 style={{ margin: '0 0 8px 0' }}>SAP Taulia-DWM Inventory & Supplier Analysis</h1>
         <p style={{ margin: '0 0 0 0', fontSize: 18 }}>
-          (for Orebro PC-SRD as of {summary && (summary as any).date ? formatDateEuropean((summary as any).date) : 'loading...'})
+          (for Orebro PC-SRD as of {selectedSnapshotDate || (summary && (summary as any).date ? formatDateEuropean((summary as any).date) : 'loading...')})
         </p>
 
         <div style={{ position: 'absolute', right: 20, top: 20, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
