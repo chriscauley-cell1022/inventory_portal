@@ -104,7 +104,7 @@ function App() {
   return (
     <div className="App">
       <header style={{ backgroundColor: '#f5f5f5', color: '#333', padding: 20, position: 'relative', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20, borderBottom: '2px solid #1976d2' }}>
-        <div style={{ position: 'absolute', left: 20, top: 50, transform: 'translateY(-50%)', height: 70 }}>
+        <div style={{ position: 'absolute', left: 20, top: 50, transform: 'translateY(-50%)', height: 45 }}>
           <img src="/SAP_Taulia_R_grad_blu.png" alt="SAP Taulia" style={{ height: '100%', objectFit: 'contain' }} />
         </div>
         <div style={{ textAlign: 'center' }}>
