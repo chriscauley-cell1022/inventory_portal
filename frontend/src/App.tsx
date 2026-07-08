@@ -103,13 +103,13 @@ function App() {
 
   return (
     <div className="App">
-      <header style={{ backgroundColor: '#1976d2', color: 'white', padding: 20, position: 'relative', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
-        <div style={{ position: 'absolute', left: 20, top: 15, height: 90 }}>
+      <header style={{ backgroundColor: '#f5f5f5', color: '#333', padding: 20, position: 'relative', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20, borderBottom: '2px solid #1976d2' }}>
+        <div style={{ position: 'absolute', left: 20, top: 50, transform: 'translateY(-50%)', height: 70 }}>
           <img src="/SAP_Taulia_R_grad_blu.png" alt="SAP Taulia" style={{ height: '100%', objectFit: 'contain' }} />
         </div>
         <div style={{ textAlign: 'center' }}>
-          <h1 style={{ margin: '0 0 8px 0' }}>Inventory & Supplier Analysis</h1>
-          <p style={{ margin: '0 0 0 0', fontSize: 18 }}>
+          <h1 style={{ margin: '0 0 8px 0', color: '#333' }}>Inventory & Supplier Analysis</h1>
+          <p style={{ margin: '0 0 0 0', fontSize: 18, color: '#666' }}>
             (for Orebro PC-SRD as of {selectedSnapshotDate || (summary && (summary as any).date ? formatDateEuropean((summary as any).date) : 'loading...')})
           </p>
         </div>
@@ -119,8 +119,8 @@ function App() {
             onClick={handleIngest}
             style={{
               padding: '6px 14px',
-              backgroundColor: '#fff',
-              color: '#1976d2',
+              backgroundColor: '#1976d2',
+              color: '#fff',
               border: 'none',
               borderRadius: 4,
               cursor: 'pointer',
@@ -133,16 +133,16 @@ function App() {
           </button>
 
           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-            <label style={{ color: 'white', fontSize: 10, fontWeight: 'bold', margin: 0, whiteSpace: 'nowrap' }}>Snapshot:</label>
+            <label style={{ color: '#333', fontSize: 10, fontWeight: 'bold', margin: 0, whiteSpace: 'nowrap' }}>Snapshot:</label>
             <select
               onChange={(e) => handleDatabaseSwitch(e.target.value)}
               style={{
                 padding: '3px 6px',
                 borderRadius: 3,
-                border: 'none',
+                border: '1px solid #1976d2',
                 fontSize: 10,
                 backgroundColor: '#fff',
-                color: '#1976d2',
+                color: '#333',
                 cursor: 'pointer',
               }}
               title="Select a database snapshot to view historical data"
