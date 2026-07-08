@@ -192,13 +192,15 @@ def get_delivery_variance():
 @app.route('/api/ingest', methods=['POST'])
 def trigger_ingest():
     """Manually trigger data ingestion from folder"""
-    folder_path = request.json.get('folder_path', '/Users/chris.cauley/Google Drive/DWM Inventory Rpts/OrebroSRD') if request.json else '/Users/chris.cauley/Google Drive/DWM Inventory Rpts/OrebroSRD'
+    # Allow folder path to be specified via environment variable or request
+    default_folder = os.environ.get('DATA_FOLDER', os.path.join(basedir, 'OrebroSRD'))
+    folder_path = request.json.get('folder_path', default_folder) if request.json else default_folder
 
     try:
         ingest_all_files(app, folder_path)
-        return jsonify({'status': 'success', 'message': 'Data ingestion completed'})
+        return jsonify({'status': 'success', 'message': 'Data ingestion completed', 'folder': folder_path})
     except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        return jsonify({'status': 'error', 'message': str(e), 'attempted_folder': folder_path}), 500
 
 @app.route('/api/inventory/by-status', methods=['GET'])
 def get_inventory_by_status():
