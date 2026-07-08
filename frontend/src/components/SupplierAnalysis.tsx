@@ -199,6 +199,10 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
           aVal = a.total_amount || 0;
           bVal = b.total_amount || 0;
           break;
+        case 'po_count':
+          aVal = a.po_count || 0;
+          bVal = b.po_count || 0;
+          break;
         default:
           return 0;
       }
@@ -440,7 +444,7 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                       <th style={{ padding: 12, textAlign: 'left', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePartsHeaderClick('part_number')}>
                         Part Number {partsSortColumn === 'part_number' && (partsSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
-                      <th style={{ padding: 12, textAlign: 'left', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePartsHeaderClick('part_description')}>
+                      <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePartsHeaderClick('part_description')}>
                         Description {partsSortColumn === 'part_description' && (partsSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
                       <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePartsHeaderClick('qty_on_order')}>
@@ -455,8 +459,8 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                       <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePartsHeaderClick('total_amount')}>
                         Total Amount (€) {partsSortColumn === 'total_amount' && (partsSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
-                      <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd' }}>
-                        Total Qty
+                      <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePartsHeaderClick('po_count')}>
+                        Total Qty {partsSortColumn === 'po_count' && (partsSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
                     </tr>
                   </thead>
@@ -466,7 +470,7 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                         <td style={{ padding: 12, borderBottom: '1px solid #eee', fontSize: 11 }}>
                           {p.part_number}
                         </td>
-                        <td style={{ padding: 12, borderBottom: '1px solid #eee', fontSize: 11 }}>
+                        <td style={{ padding: 12, borderBottom: '1px solid #eee', fontSize: 11, textAlign: 'left' }}>
                           {p.part_description}
                         </td>
                         <td style={{ padding: 12, textAlign: 'right', borderBottom: '1px solid #eee' }}>
