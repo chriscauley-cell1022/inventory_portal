@@ -292,7 +292,7 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                   {formatNumber(s.total_qty_on_hand)}
                 </td>
                 <td style={{ padding: 12, textAlign: 'center', borderBottom: '1px solid #eee', fontSize: 11 }}>
-                  {formatNumber(s.total_po_quantity)}
+                  {formatNumber((s.total_qty_on_order || 0) + (s.total_qty_in_transit || 0) + (s.total_qty_on_hand || 0))}
                 </td>
                 <td
                   style={{
