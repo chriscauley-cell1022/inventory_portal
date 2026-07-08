@@ -147,6 +147,8 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
   const [loadingParts, setLoadingParts] = useState(false);
   const [sortColumn, setSortColumn] = useState<string>('po_spend');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [partsSortColumn, setPartsSortColumn] = useState<string>('total_amount');
+  const [partsSortDirection, setPartsSortDirection] = useState<'asc' | 'desc'>('desc');
 
   const handleHeaderClick = (column: string) => {
     if (sortColumn === column) {
@@ -155,6 +157,60 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
       setSortColumn(column);
       setSortDirection('desc');
     }
+  };
+
+  const handlePartsHeaderClick = (column: string) => {
+    if (partsSortColumn === column) {
+      setPartsSortDirection(partsSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setPartsSortColumn(column);
+      setPartsSortDirection('desc');
+    }
+  };
+
+  const getSortedParts = (partsToSort: AggregatedPart[]): AggregatedPart[] => {
+    const sorted = [...partsToSort];
+    sorted.sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+
+      switch (partsSortColumn) {
+        case 'part_number':
+          aVal = (a.part_number || '').toLowerCase();
+          bVal = (b.part_number || '').toLowerCase();
+          return partsSortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        case 'part_description':
+          aVal = (a.part_description || '').toLowerCase();
+          bVal = (b.part_description || '').toLowerCase();
+          return partsSortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        case 'qty_on_order':
+          aVal = a.qty_on_order || 0;
+          bVal = b.qty_on_order || 0;
+          break;
+        case 'qty_in_transit':
+          aVal = a.qty_in_transit || 0;
+          bVal = b.qty_in_transit || 0;
+          break;
+        case 'qty_on_hand':
+          aVal = a.qty_on_hand || 0;
+          bVal = b.qty_on_hand || 0;
+          break;
+        case 'total_amount':
+          aVal = a.total_amount || 0;
+          bVal = b.total_amount || 0;
+          break;
+        default:
+          return 0;
+      }
+
+      if (partsSortDirection === 'asc') {
+        return aVal - bVal;
+      } else {
+        return bVal - aVal;
+      }
+    });
+
+    return sorted;
   };
 
   const handleSupplierClick = async (supplier: Supplier) => {
@@ -381,23 +437,23 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead>
                     <tr style={{ backgroundColor: '#f5f5f5' }}>
-                      <th style={{ padding: 12, textAlign: 'left', borderBottom: '2px solid #ddd' }}>
-                        Part Number
+                      <th style={{ padding: 12, textAlign: 'left', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePartsHeaderClick('part_number')}>
+                        Part Number {partsSortColumn === 'part_number' && (partsSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
-                      <th style={{ padding: 12, textAlign: 'left', borderBottom: '2px solid #ddd' }}>
-                        Description
+                      <th style={{ padding: 12, textAlign: 'left', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePartsHeaderClick('part_description')}>
+                        Description {partsSortColumn === 'part_description' && (partsSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
-                      <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd' }}>
-                        On Order
+                      <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePartsHeaderClick('qty_on_order')}>
+                        On Order {partsSortColumn === 'qty_on_order' && (partsSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
-                      <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd' }}>
-                        In Transit
+                      <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePartsHeaderClick('qty_in_transit')}>
+                        In Transit {partsSortColumn === 'qty_in_transit' && (partsSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
-                      <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd' }}>
-                        On Hand
+                      <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePartsHeaderClick('qty_on_hand')}>
+                        On Hand {partsSortColumn === 'qty_on_hand' && (partsSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
-                      <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd' }}>
-                        Total Amount (€)
+                      <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePartsHeaderClick('total_amount')}>
+                        Total Amount (€) {partsSortColumn === 'total_amount' && (partsSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
                       <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd' }}>
                         Total Qty
@@ -405,7 +461,7 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {parts.map((p, idx) => (
+                    {getSortedParts(parts).map((p, idx) => (
                       <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? '#f9f9f9' : 'white' }}>
                         <td style={{ padding: 12, borderBottom: '1px solid #eee', fontSize: 11 }}>
                           {p.part_number}
