@@ -101,47 +101,47 @@ function App() {
           (for Orebro PC-SRD as of {summary && (summary as any).date ? formatDateEuropean((summary as any).date) : 'loading...'})
         </p>
 
-        <div style={{ position: 'absolute', left: 20, top: 20, display: 'flex', gap: 10, alignItems: 'center' }}>
-          <label style={{ color: 'white', fontSize: 14, fontWeight: 'bold' }}>View Snapshot:</label>
-          <select
-            onChange={(e) => handleDatabaseSwitch(e.target.value)}
+        <div style={{ position: 'absolute', right: 20, top: 20, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
+          <button
+            onClick={handleIngest}
             style={{
-              padding: '8px 12px',
-              borderRadius: 4,
-              border: 'none',
-              fontSize: 14,
+              padding: '8px 16px',
               backgroundColor: '#fff',
               color: '#1976d2',
+              border: 'none',
+              borderRadius: 4,
               cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: 12,
             }}
-            title="Select a database snapshot to view historical data"
           >
-            <option value="current">Current (Live)</option>
-            {databases.map((db) => (
-              <option key={db.path} value={db.path}>
-                {db.date} ({db.size_mb}MB)
-              </option>
-            ))}
-          </select>
-        </div>
+            Refresh Data
+          </button>
 
-        <button
-          onClick={handleIngest}
-          style={{
-            position: 'absolute',
-            right: 20,
-            top: 20,
-            padding: '10px 20px',
-            backgroundColor: '#fff',
-            color: '#1976d2',
-            border: 'none',
-            borderRadius: 4,
-            cursor: 'pointer',
-            fontWeight: 'bold',
-          }}
-        >
-          Refresh Data
-        </button>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <label style={{ color: 'white', fontSize: 11, fontWeight: 'bold', margin: 0 }}>Snapshot:</label>
+            <select
+              onChange={(e) => handleDatabaseSwitch(e.target.value)}
+              style={{
+                padding: '4px 8px',
+                borderRadius: 3,
+                border: 'none',
+                fontSize: 11,
+                backgroundColor: '#fff',
+                color: '#1976d2',
+                cursor: 'pointer',
+              }}
+              title="Select a database snapshot to view historical data"
+            >
+              <option value="current">Current (Live)</option>
+              {databases.map((db) => (
+                <option key={db.path} value={db.path}>
+                  {db.date} ({db.size_mb}MB)
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
       </header>
 
       <main style={{ padding: 20, maxWidth: 1400, margin: '0 auto' }}>
