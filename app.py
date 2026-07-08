@@ -5,14 +5,23 @@ from ingest import ingest_all_files
 import os
 from datetime import datetime, timedelta
 from sqlalchemy import func
+from pathlib import Path
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 frontend_build = os.path.join(basedir, 'frontend', 'build')
+databases_dir = os.path.join(basedir, 'databases')
+
+# Ensure databases directory exists
+os.makedirs(databases_dir, exist_ok=True)
 
 app = Flask(__name__, static_folder=frontend_build, static_url_path='')
 CORS(app)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{basedir}/inventory.db'
+# Default to current database, but allow switching via environment variable
+current_db = os.environ.get('INVENTORY_DB', 'inventory.db')
+db_path = current_db if os.path.isabs(current_db) else os.path.join(basedir, current_db)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db.init_app(app)
@@ -358,6 +367,39 @@ def get_expiring_inventory():
         'expiring_60_days': expiring_60,
         'expiring_30_days': expiring_30,
     })
+
+@app.route('/api/databases', methods=['GET'])
+def list_databases():
+    """List available database snapshots"""
+    db_files = []
+
+    # List backups in databases folder
+    db_dir = os.path.join(basedir, 'databases')
+    if os.path.exists(db_dir):
+        for file in sorted(os.listdir(db_dir), reverse=True):
+            if file.endswith('.db'):
+                file_path = os.path.join(db_dir, file)
+                file_size = os.path.getsize(file_path) / (1024 * 1024)  # Convert to MB
+                db_files.append({
+                    'filename': file,
+                    'path': f'databases/{file}',
+                    'size_mb': round(file_size, 1),
+                    'date': file.replace('inventory_', '').replace('.db', '')
+                })
+
+    # Include current database
+    current_path = os.path.join(basedir, 'inventory.db')
+    if os.path.exists(current_path):
+        file_size = os.path.getsize(current_path) / (1024 * 1024)
+        db_files.insert(0, {
+            'filename': 'inventory.db',
+            'path': 'inventory.db',
+            'size_mb': round(file_size, 1),
+            'date': 'Current',
+            'is_current': True
+        })
+
+    return jsonify(db_files)
 
 @app.route('/')
 def serve_index():

@@ -3,11 +3,57 @@ import pandas as pd
 from datetime import datetime, timedelta
 from pathlib import Path
 import re
+import shutil
 from openpyxl import load_workbook
 from models import db, InventorySnapshot, MetricSnapshot, SupplierMetric, DeliveryVariance
 
 # Currency conversion rates (as of 2026)
 SEK_TO_EUR = 0.0945  # Approximate conversion rate
+
+def backup_database(app):
+    """Create a timestamped backup of the current database"""
+    basedir = os.path.abspath(os.path.dirname(__file__))
+    db_path = os.path.join(basedir, 'inventory.db')
+    backup_dir = os.path.join(basedir, 'databases')
+
+    os.makedirs(backup_dir, exist_ok=True)
+
+    # Get latest snapshot date for backup filename
+    with app.app_context():
+        from sqlalchemy import func
+        latest_date = db.session.query(func.max(SupplierMetric.snapshot_date)).scalar()
+        if latest_date:
+            backup_filename = f'inventory_{latest_date}.db'
+            backup_path = os.path.join(backup_dir, backup_filename)
+
+            # Create backup
+            if os.path.exists(db_path):
+                shutil.copy2(db_path, backup_path)
+                print(f"✓ Database backup created: {backup_filename}")
+
+                # Also export metrics to Excel
+                try:
+                    supplier_metrics = pd.read_sql_query(
+                        "SELECT * FROM supplier_metric WHERE snapshot_date = ?",
+                        f'sqlite:///{db_path}',
+                        params=(latest_date,)
+                    )
+                    inventory_data = pd.read_sql_query(
+                        "SELECT * FROM inventory_snapshot WHERE report_date = ?",
+                        f'sqlite:///{db_path}',
+                        params=(latest_date,)
+                    )
+
+                    excel_filename = f'supplier_metrics_{latest_date}.xlsx'
+                    excel_path = os.path.join(backup_dir, excel_filename)
+
+                    with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
+                        supplier_metrics.to_excel(writer, sheet_name='Supplier Metrics', index=False)
+                        inventory_data.to_excel(writer, sheet_name='Inventory Details', index=False)
+
+                    print(f"✓ Metrics exported: {excel_filename}")
+                except Exception as e:
+                    print(f"Warning: Could not export Excel: {e}")
 
 def extract_report_date_from_filename(filename):
     """Extract date from filename"""
@@ -391,3 +437,7 @@ def ingest_all_files(app, folder_path):
             ingested_count += 1
 
     print(f"Finished ingesting {ingested_count} files")
+
+    # Create backup after successful ingest
+    if ingested_count > 0:
+        backup_database(app)

@@ -18,16 +18,36 @@ const formatDateEuropean = (dateStr: string): string => {
   }
 };
 
+interface Database {
+  filename: string;
+  path: string;
+  size_mb: number;
+  date: string;
+  is_current?: boolean;
+}
+
 function App() {
   const [summary, setSummary] = useState(null);
   const [trends, setTrends] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [databases, setDatabases] = useState<Database[]>([]);
 
   useEffect(() => {
+    loadDatabases();
     loadData();
   }, []);
+
+  const loadDatabases = async () => {
+    try {
+      const response = await fetch('/api/databases');
+      const data = await response.json();
+      setDatabases(data);
+    } catch (err) {
+      console.error('Error loading databases:', err);
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -50,6 +70,16 @@ function App() {
     }
   };
 
+  const handleDatabaseSwitch = async (dbPath: string) => {
+    if (dbPath === 'current') {
+      window.location.href = '/';
+      return;
+    }
+    // For switching to historical databases, would need to implement backend support
+    // For now, this is a UI placeholder showing available snapshots
+    alert(`Database switching would require backend support. Available snapshot: ${dbPath}`);
+  };
+
   const handleIngest = async () => {
     setLoading(true);
     try {
@@ -70,6 +100,31 @@ function App() {
         <p style={{ margin: '0 0 0 0', fontSize: 18 }}>
           (for Orebro PC-SRD as of {summary && (summary as any).date ? formatDateEuropean((summary as any).date) : 'loading...'})
         </p>
+
+        <div style={{ position: 'absolute', left: 20, top: 20, display: 'flex', gap: 10, alignItems: 'center' }}>
+          <label style={{ color: 'white', fontSize: 14, fontWeight: 'bold' }}>View Snapshot:</label>
+          <select
+            onChange={(e) => handleDatabaseSwitch(e.target.value)}
+            style={{
+              padding: '8px 12px',
+              borderRadius: 4,
+              border: 'none',
+              fontSize: 14,
+              backgroundColor: '#fff',
+              color: '#1976d2',
+              cursor: 'pointer',
+            }}
+            title="Select a database snapshot to view historical data"
+          >
+            <option value="current">Current (Live)</option>
+            {databases.map((db) => (
+              <option key={db.path} value={db.path}>
+                {db.date} ({db.size_mb}MB)
+              </option>
+            ))}
+          </select>
+        </div>
+
         <button
           onClick={handleIngest}
           style={{
