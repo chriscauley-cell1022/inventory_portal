@@ -101,11 +101,11 @@ function App() {
           (for Orebro PC-SRD as of {summary && (summary as any).date ? formatDateEuropean((summary as any).date) : 'loading...'})
         </p>
 
-        <div style={{ position: 'absolute', right: 20, top: 20, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
+        <div style={{ position: 'absolute', right: 20, top: 20, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
           <button
             onClick={handleIngest}
             style={{
-              padding: '8px 16px',
+              padding: '6px 14px',
               backgroundColor: '#fff',
               color: '#1976d2',
               border: 'none',
@@ -113,20 +113,21 @@ function App() {
               cursor: 'pointer',
               fontWeight: 'bold',
               fontSize: 12,
+              whiteSpace: 'nowrap',
             }}
           >
             Refresh Data
           </button>
 
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <label style={{ color: 'white', fontSize: 11, fontWeight: 'bold', margin: 0 }}>Snapshot:</label>
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <label style={{ color: 'white', fontSize: 10, fontWeight: 'bold', margin: 0, whiteSpace: 'nowrap' }}>Snapshot:</label>
             <select
               onChange={(e) => handleDatabaseSwitch(e.target.value)}
               style={{
-                padding: '4px 8px',
+                padding: '3px 6px',
                 borderRadius: 3,
                 border: 'none',
-                fontSize: 11,
+                fontSize: 10,
                 backgroundColor: '#fff',
                 color: '#1976d2',
                 cursor: 'pointer',
