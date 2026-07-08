@@ -104,8 +104,8 @@ function App() {
   return (
     <div className="App">
       <header style={{ backgroundColor: '#1976d2', color: 'white', padding: 20, position: 'relative', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
-        <div style={{ position: 'absolute', left: 20, top: 20, width: 80, height: 80, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>
-          SAP Taulia<br />Logo
+        <div style={{ position: 'absolute', left: 20, top: 15, height: 90 }}>
+          <img src="/sap_taulia_r_grad_blue.png" alt="SAP Taulia" style={{ height: '100%', objectFit: 'contain' }} />
         </div>
         <div style={{ textAlign: 'center' }}>
           <h1 style={{ margin: '0 0 8px 0' }}>Inventory & Supplier Analysis</h1>
