@@ -1,3 +1,4 @@
+// Total Quantity fix: sum of on_order + in_transit + on_hand
 import React, { useState } from 'react';
 import {
   BarChart,
