@@ -109,7 +109,7 @@ function App() {
         </div>
         <div style={{ textAlign: 'center' }}>
           <h1 style={{ margin: '0 0 8px 0', color: '#333' }}>Inventory & Supplier Analysis</h1>
-          <p style={{ margin: '0 0 0 0', fontSize: 18, color: '#666' }}>
+          <p style={{ margin: '0 0 0 0', fontSize: 14, fontWeight: 'bold', color: '#333' }}>
             (for Orebro PC-SRD as of {selectedSnapshotDate || (summary && (summary as any).date ? formatDateEuropean((summary as any).date) : 'loading...')})
           </p>
         </div>
