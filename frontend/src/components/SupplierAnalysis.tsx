@@ -67,10 +67,94 @@ const formatNumber = (value: number) => {
   }).format(value || 0);
 };
 
+const calculateAvailableSpend = (supplier: Supplier): number => {
+  const qty = (supplier.total_qty_on_order || 0) + (supplier.total_qty_in_transit || 0) + (supplier.total_qty_on_hand || 0);
+  return supplier.total_po_quantity && supplier.total_po_quantity > 0
+    ? (qty / supplier.total_po_quantity) * (supplier.total_po_spend || 0)
+    : 0;
+};
+
+const getSortedSuppliers = (
+  suppliers: Supplier[],
+  sortColumn: string,
+  sortDirection: 'asc' | 'desc'
+): Supplier[] => {
+  const sorted = [...suppliers];
+
+  sorted.sort((a, b) => {
+    let aVal: any;
+    let bVal: any;
+
+    switch (sortColumn) {
+      case 'supplier':
+        aVal = (a.supplier || '').toLowerCase();
+        bVal = (b.supplier || '').toLowerCase();
+        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      case 'po_spend':
+        aVal = calculateAvailableSpend(a);
+        bVal = calculateAvailableSpend(b);
+        break;
+      case 'wow_spend_change':
+        aVal = a.wow_spend_change || 0;
+        bVal = b.wow_spend_change || 0;
+        break;
+      case 'wow_spend_pct_change':
+        aVal = a.wow_spend_pct_change || 0;
+        bVal = b.wow_spend_pct_change || 0;
+        break;
+      case 'total_qty_on_order':
+        aVal = a.total_qty_on_order || 0;
+        bVal = b.total_qty_on_order || 0;
+        break;
+      case 'total_qty_in_transit':
+        aVal = a.total_qty_in_transit || 0;
+        bVal = b.total_qty_in_transit || 0;
+        break;
+      case 'total_qty_on_hand':
+        aVal = a.total_qty_on_hand || 0;
+        bVal = b.total_qty_on_hand || 0;
+        break;
+      case 'total_po_quantity':
+        aVal = a.total_po_quantity || 0;
+        bVal = b.total_po_quantity || 0;
+        break;
+      case 'wow_qty_change':
+        aVal = a.wow_qty_change || 0;
+        bVal = b.wow_qty_change || 0;
+        break;
+      case 'wow_qty_pct_change':
+        aVal = a.wow_qty_pct_change || 0;
+        bVal = b.wow_qty_pct_change || 0;
+        break;
+      default:
+        return 0;
+    }
+
+    if (sortDirection === 'asc') {
+      return aVal - bVal;
+    } else {
+      return bVal - aVal;
+    }
+  });
+
+  return sorted;
+};
+
 const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const [parts, setParts] = useState<AggregatedPart[]>([]);
   const [loadingParts, setLoadingParts] = useState(false);
+  const [sortColumn, setSortColumn] = useState<string>('po_spend');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  const handleHeaderClick = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('desc');
+    }
+  };
 
   const handleSupplierClick = async (supplier: Supplier) => {
     setSelectedSupplier(supplier);
@@ -124,68 +208,65 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
   }));
 
   return (
-    <div>
-      <h2>Supplier Analysis</h2>
+    <div style={{ maxWidth: 1200, margin: '0 auto', border: '1px solid #ddd', borderRadius: 8, padding: 20, marginBottom: 20 }}>
+      <h2 style={{ textAlign: 'center', marginTop: 0 }}>Supplier Analysis</h2>
 
-      <h3>Current Supplier Metrics</h3>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+      <div style={{ overflowX: 'auto', display: 'flex', justifyContent: 'center' }}>
+        <table style={{ borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ backgroundColor: '#f5f5f5' }}>
-              <th style={{ padding: 12, textAlign: 'left', borderBottom: '2px solid #ddd', cursor: 'pointer' }}>
-                Supplier
+              <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '110px' }} onClick={() => handleHeaderClick('supplier')}>
+                Supplier {sortColumn === 'supplier' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
-              <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd' }}>
-                PO Spend (€)
+              <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '110px' }} onClick={() => handleHeaderClick('po_spend')}>
+                PO Spend (€) {sortColumn === 'po_spend' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
-              <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd' }}>
-                Spend WoW (€)
+              <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '100px' }} onClick={() => handleHeaderClick('wow_spend_change')}>
+                Δ from prior week (€) {sortColumn === 'wow_spend_change' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
-              <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd' }}>
-                Spend WoW %
+              <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '90px' }} onClick={() => handleHeaderClick('wow_spend_pct_change')}>
+                % Δ from prior week {sortColumn === 'wow_spend_pct_change' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
-              <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd' }}>
-                Quantity
+              <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '75px' }} onClick={() => handleHeaderClick('total_qty_on_order')}>
+                On Order {sortColumn === 'total_qty_on_order' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
-              <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd' }}>
-                Qty WoW
+              <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '75px' }} onClick={() => handleHeaderClick('total_qty_in_transit')}>
+                In Transit {sortColumn === 'total_qty_in_transit' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
-              <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd' }}>
-                Qty WoW %
+              <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '75px' }} onClick={() => handleHeaderClick('total_qty_on_hand')}>
+                On Hand {sortColumn === 'total_qty_on_hand' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
-              <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd' }}>
-                On Order
+              <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '90px' }} onClick={() => handleHeaderClick('total_po_quantity')}>
+                Total Quantity {sortColumn === 'total_po_quantity' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
-              <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd' }}>
-                In Transit
+              <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '75px' }} onClick={() => handleHeaderClick('wow_qty_change')}>
+                Δ from prior week {sortColumn === 'wow_qty_change' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
-              <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd' }}>
-                On Hand
-              </th>
-              <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd' }}>
-                Delivery Variance (days)
+              <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '90px' }} onClick={() => handleHeaderClick('wow_qty_pct_change')}>
+                % Δ from prior week {sortColumn === 'wow_qty_pct_change' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
             </tr>
           </thead>
           <tbody>
-            {suppliers.map((s, idx) => (
+            {getSortedSuppliers(suppliers, sortColumn, sortDirection).map((s, idx) => (
               <tr
                 key={idx}
                 style={{ backgroundColor: idx % 2 === 0 ? '#f9f9f9' : 'white', cursor: 'pointer' }}
                 onClick={() => handleSupplierClick(s)}
               >
-                <td style={{ padding: 12, borderBottom: '1px solid #eee', color: '#1976d2', textDecoration: 'underline' }}>
+                <td style={{ padding: 12, borderBottom: '1px solid #eee', color: '#1976d2', textDecoration: 'underline', textAlign: 'center', fontSize: 11 }}>
                   {s.supplier}
                 </td>
-                <td style={{ padding: 12, textAlign: 'right', borderBottom: '1px solid #eee' }}>
-                  {formatCurrency(s.total_po_spend)}
+                <td style={{ padding: 12, textAlign: 'center', borderBottom: '1px solid #eee', fontSize: 11 }}>
+                  {formatCurrency(calculateAvailableSpend(s))}
                 </td>
                 <td
                   style={{
                     padding: 12,
-                    textAlign: 'right',
+                    textAlign: 'center',
                     borderBottom: '1px solid #eee',
                     color: (s.wow_spend_change || 0) > 0 ? '#4caf50' : (s.wow_spend_change || 0) < 0 ? '#f44336' : '#000',
+                    fontSize: 11,
                   }}
                 >
                   {formatCurrency(s.wow_spend_change || 0)}
@@ -193,22 +274,33 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                 <td
                   style={{
                     padding: 12,
-                    textAlign: 'right',
+                    textAlign: 'center',
                     borderBottom: '1px solid #eee',
                     color: (s.wow_spend_pct_change || 0) > 0 ? '#4caf50' : (s.wow_spend_pct_change || 0) < 0 ? '#f44336' : '#000',
+                    fontSize: 11,
                   }}
                 >
                   {s.wow_spend_pct_change ? `${s.wow_spend_pct_change > 0 ? '+' : ''}${s.wow_spend_pct_change.toFixed(1)}%` : 'N/A'}
                 </td>
-                <td style={{ padding: 12, textAlign: 'right', borderBottom: '1px solid #eee' }}>
+                <td style={{ padding: 12, textAlign: 'center', borderBottom: '1px solid #eee', fontSize: 11 }}>
+                  {formatNumber(s.total_qty_on_order)}
+                </td>
+                <td style={{ padding: 12, textAlign: 'center', borderBottom: '1px solid #eee', fontSize: 11 }}>
+                  {formatNumber(s.total_qty_in_transit)}
+                </td>
+                <td style={{ padding: 12, textAlign: 'center', borderBottom: '1px solid #eee', fontSize: 11 }}>
+                  {formatNumber(s.total_qty_on_hand)}
+                </td>
+                <td style={{ padding: 12, textAlign: 'center', borderBottom: '1px solid #eee', fontSize: 11 }}>
                   {formatNumber(s.total_po_quantity)}
                 </td>
                 <td
                   style={{
                     padding: 12,
-                    textAlign: 'right',
+                    textAlign: 'center',
                     borderBottom: '1px solid #eee',
                     color: (s.wow_qty_change || 0) > 0 ? '#4caf50' : (s.wow_qty_change || 0) < 0 ? '#f44336' : '#000',
+                    fontSize: 11,
                   }}
                 >
                   {formatNumber(s.wow_qty_change || 0)}
@@ -216,32 +308,13 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                 <td
                   style={{
                     padding: 12,
-                    textAlign: 'right',
+                    textAlign: 'center',
                     borderBottom: '1px solid #eee',
                     color: (s.wow_qty_pct_change || 0) > 0 ? '#4caf50' : (s.wow_qty_pct_change || 0) < 0 ? '#f44336' : '#000',
+                    fontSize: 11,
                   }}
                 >
                   {s.wow_qty_pct_change ? `${s.wow_qty_pct_change > 0 ? '+' : ''}${s.wow_qty_pct_change.toFixed(1)}%` : 'N/A'}
-                </td>
-                <td style={{ padding: 12, textAlign: 'right', borderBottom: '1px solid #eee' }}>
-                  {formatNumber(s.total_qty_on_order)}
-                </td>
-                <td style={{ padding: 12, textAlign: 'right', borderBottom: '1px solid #eee' }}>
-                  {formatNumber(s.total_qty_in_transit)}
-                </td>
-                <td style={{ padding: 12, textAlign: 'right', borderBottom: '1px solid #eee' }}>
-                  {formatNumber(s.total_qty_on_hand)}
-                </td>
-                <td
-                  style={{
-                    padding: 12,
-                    textAlign: 'right',
-                    borderBottom: '1px solid #eee',
-                    color: (s.avg_delivery_variance_days || 0) > 0 ? '#f44336' : '#4caf50',
-                    fontWeight: 'bold',
-                  }}
-                >
-                  {s.avg_delivery_variance_days.toFixed(1)}
                 </td>
               </tr>
             ))}

@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from models import db, InventorySnapshot, MetricSnapshot, SupplierMetric, DeliveryVariance
 from ingest import ingest_all_files
@@ -6,10 +6,12 @@ import os
 from datetime import datetime, timedelta
 from sqlalchemy import func
 
-app = Flask(__name__)
+basedir = os.path.abspath(os.path.dirname(__file__))
+frontend_build = os.path.join(basedir, 'frontend', 'build')
+
+app = Flask(__name__, static_folder=frontend_build, static_url_path='')
 CORS(app)
 
-basedir = os.path.abspath(os.path.dirname(__file__))
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{basedir}/inventory.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -216,7 +218,147 @@ def get_inventory_by_status():
         'called_off': metric.total_qty_called_off or 0,
     })
 
+@app.route('/api/inventory/expiring', methods=['GET'])
+def get_expiring_inventory():
+    """Get inventory approaching expiration"""
+    from datetime import date as date_type
+
+    latest_date = db.session.query(func.max(InventorySnapshot.report_date)).scalar()
+
+    if not latest_date:
+        return jsonify({'error': 'No data available'}), 404
+
+    # Get inventory with final delivery dates in the future (days_remaining > 0)
+    # and that have actual inventory quantities
+    inventory = InventorySnapshot.query.filter_by(
+        report_date=latest_date
+    ).filter(
+        InventorySnapshot.final_delivery_date.isnot(None),
+        InventorySnapshot.days_remaining.isnot(None),
+        InventorySnapshot.days_remaining > 0,
+        InventorySnapshot.po_quantity > 0
+    ).all()
+
+    # Aggregate by (supplier, po_number, part_number, final_delivery_date, days_remaining)
+    # to sum quantities across multiple rows for same part in same PO
+    agg_dict = {}
+
+    for item in inventory:
+        key = (
+            item.supplier or '',
+            item.po_number or '',
+            item.part_number or 'N/A',
+            str(item.final_delivery_date) if item.final_delivery_date else '',
+            item.days_remaining or 0,
+            item.inventory_age or 0,
+        )
+
+        # Calculate open quantity (not called off)
+        qty = (item.qty_on_order or 0) + (item.qty_in_transit or 0) + (item.qty_on_hand or 0)
+
+        if key not in agg_dict:
+            agg_dict[key] = {
+                'supplier': key[0],
+                'po_number': key[1],
+                'part_number': key[2],
+                'part_description': item.part_description or '',
+                'final_delivery_date': key[3],
+                'inventory_age': key[5],
+                'days_remaining': key[4],
+                'quantity': 0,
+                'po_amount': item.total_po_amount or 0,
+                'po_quantity': item.po_quantity or 0,
+            }
+
+        agg_dict[key]['quantity'] += qty
+
+    # Get overdue items (negative days_remaining but not yet called off)
+    overdue_inventory = InventorySnapshot.query.filter_by(
+        report_date=latest_date
+    ).filter(
+        InventorySnapshot.final_delivery_date.isnot(None),
+        InventorySnapshot.days_remaining.isnot(None),
+        InventorySnapshot.days_remaining < 0,
+        InventorySnapshot.po_quantity > 0
+    ).all()
+
+    # Aggregate overdue items
+    overdue_dict = {}
+    for item in overdue_inventory:
+        key = (
+            item.supplier or '',
+            item.po_number or '',
+            item.part_number or 'N/A',
+            str(item.final_delivery_date) if item.final_delivery_date else '',
+            item.days_remaining or 0,
+            item.inventory_age or 0,
+        )
+
+        qty = (item.qty_on_order or 0) + (item.qty_in_transit or 0) + (item.qty_on_hand or 0)
+
+        if qty > 0:  # Only include if has actual quantity
+            if key not in overdue_dict:
+                overdue_dict[key] = {
+                    'supplier': key[0],
+                    'po_number': key[1],
+                    'part_number': key[2],
+                    'part_description': item.part_description or '',
+                    'final_delivery_date': key[3],
+                    'inventory_age': key[5],
+                    'days_remaining': key[4],
+                    'quantity': 0,
+                    'po_amount': item.total_po_amount or 0,
+                    'po_quantity': item.po_quantity or 0,
+                }
+
+            overdue_dict[key]['quantity'] += qty
+
+    # Separate into 60-day, 30-day, and overdue buckets
+    expiring_60 = []
+    expiring_30 = []
+    overdue = list(overdue_dict.values())
+
+    for item_data in agg_dict.values():
+        if item_data['quantity'] > 0:  # Only include items with actual quantity
+            if item_data['days_remaining'] <= 60 and item_data['days_remaining'] > 30:
+                expiring_60.append(item_data)
+
+            if item_data['days_remaining'] <= 30 and item_data['days_remaining'] > 0:
+                expiring_30.append(item_data)
+
+    # Sort by days remaining (ascending for future dates, descending for overdue)
+    expiring_60.sort(key=lambda x: x['days_remaining'])
+    expiring_30.sort(key=lambda x: x['days_remaining'])
+    overdue.sort(key=lambda x: x['days_remaining'], reverse=True)  # Reverse so most overdue first
+
+    return jsonify({
+        'date': str(latest_date),
+        'overdue_items': overdue,
+        'expiring_60_days': expiring_60,
+        'expiring_30_days': expiring_30,
+    })
+
+@app.route('/')
+def serve_index():
+    """Serve the React app"""
+    index_path = os.path.join(frontend_build, 'index.html')
+    if os.path.exists(index_path):
+        return send_from_directory(frontend_build, 'index.html')
+    return jsonify({'error': 'Frontend not built. Run: cd frontend && npm run build'}), 404
+
+@app.route('/<path:path>')
+def serve_react(path):
+    """Serve React app assets or fall back to index.html"""
+    file_path = os.path.join(frontend_build, path)
+    if os.path.isfile(file_path):
+        return send_from_directory(frontend_build, path)
+    # Fall back to index.html for React Router
+    index_path = os.path.join(frontend_build, 'index.html')
+    if os.path.exists(index_path):
+        return send_from_directory(frontend_build, 'index.html')
+    return jsonify({'error': 'File not found'}), 404
+
 if __name__ == '__main__':
-    import os
-    port = int(os.environ.get('FLASK_PORT', 5001))
-    app.run(debug=True, port=port, host='127.0.0.1')
+    port = int(os.environ.get('FLASK_PORT', os.environ.get('PORT', 5555)))
+    is_production = os.environ.get('FLASK_ENV') == 'production'
+    app.run(debug=not is_production, port=port, host='0.0.0.0' if is_production else '127.0.0.1')

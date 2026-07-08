@@ -8,6 +8,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  Label,
 } from 'recharts';
 
 interface TrendChartProps {
@@ -18,14 +19,34 @@ interface TrendChartProps {
   yAxisLabel?: string;
 }
 
+const formatDateEuropean = (dateStr: string): string => {
+  try {
+    const date = new Date(dateStr);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = date.toLocaleString('en-US', { month: 'short' });
+    const year = String(date.getFullYear()).slice(-2);
+    return `${day}-${month}-${year}`;
+  } catch {
+    return dateStr;
+  }
+};
+
 const TrendChart: React.FC<TrendChartProps> = ({ data, title, lines, xAxisLabel = 'Date', yAxisLabel = 'Value' }) => (
-  <div style={{ width: '100%', marginBottom: 50 }}>
-    <h3>{title}</h3>
-    <div style={{ width: '100%', height: 450 }}>
+  <div style={{ width: '100%', marginBottom: 0 }}>
+    <h3 style={{ margin: '0 0 8px 0', textAlign: 'center' }}>{title}</h3>
+    <div style={{ display: 'flex', justifyContent: 'center', gap: 20, fontSize: 12, marginBottom: 12 }}>
+      {lines.map(line => (
+        <div key={line.dataKey} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ width: 12, height: 2, backgroundColor: line.color }} />
+          <span>{line.name}</span>
+        </div>
+      ))}
+    </div>
+    <div style={{ width: '100%', height: 280 }}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={data}
-          margin={{ top: 20, right: 30, left: 100, bottom: 80 }}
+          margin={{ top: 5, right: 65, left: 65, bottom: 0 }}
         >
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis
@@ -34,7 +55,10 @@ const TrendChart: React.FC<TrendChartProps> = ({ data, title, lines, xAxisLabel 
             textAnchor="end"
             height={100}
             tick={{ fontSize: 11 }}
-          />
+            tickFormatter={(date) => formatDateEuropean(date)}
+          >
+            <Label value={xAxisLabel} position="insideBottomRight" offset={5} style={{ fontSize: 10, fontWeight: 'bold' }} />
+          </XAxis>
           <YAxis
             tick={{ fontSize: 11 }}
             width={95}
@@ -45,26 +69,28 @@ const TrendChart: React.FC<TrendChartProps> = ({ data, title, lines, xAxisLabel 
                 maximumFractionDigits: 0,
               }).format(value)
             }
-          />
+          >
+            <Label value={yAxisLabel} angle={-90} position="center" offset={5} style={{ fontSize: 10, fontWeight: 'bold' }} />
+          </YAxis>
           <Tooltip
             formatter={(value: any) => {
               if (typeof value === 'number') {
-                return new Intl.NumberFormat('en-US', {
+                return `€${new Intl.NumberFormat('en-US', {
                   minimumFractionDigits: 0,
                   maximumFractionDigits: 0,
-                }).format(value);
+                }).format(value)}`;
               }
               return value;
             }}
             labelFormatter={(label) => {
               const dataPoint = data.find(d => d.date === label);
+              const formattedDate = formatDateEuropean(label);
               if (dataPoint && dataPoint.wow_pct !== undefined && dataPoint.wow_pct !== null) {
-                return `${label} (${dataPoint.wow_pct > 0 ? '+' : ''}${dataPoint.wow_pct.toFixed(1)}% WoW)`;
+                return `${formattedDate} (${dataPoint.wow_pct > 0 ? '+' : ''}${dataPoint.wow_pct.toFixed(1)}% WoW)`;
               }
-              return label;
+              return formattedDate;
             }}
           />
-          <Legend wrapperStyle={{ paddingTop: 20 }} />
           {lines.map(line => (
             <Line
               key={line.dataKey}
@@ -77,14 +103,6 @@ const TrendChart: React.FC<TrendChartProps> = ({ data, title, lines, xAxisLabel 
           ))}
         </LineChart>
       </ResponsiveContainer>
-    </div>
-    <div style={{ fontSize: 12, color: '#666', marginTop: 10 }}>
-      <div style={{ marginBottom: 5 }}>
-        <strong>Y-Axis:</strong> {yAxisLabel}
-      </div>
-      <div>
-        <strong>X-Axis:</strong> {xAxisLabel}
-      </div>
     </div>
   </div>
 );

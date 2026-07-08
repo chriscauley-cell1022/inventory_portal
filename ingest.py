@@ -161,6 +161,22 @@ def ingest_inventory_file(file_path, app):
                 # Get currency column if it exists
                 currency_str = row.get('Currency', 'EUR')
 
+                # Calculate days remaining to expiration
+                final_delivery_date = safe_to_date(row.get('Final Delivery Date'))
+                inventory_age_val = None
+                days_remaining_val = None
+
+                if final_delivery_date:
+                    days_remaining_val = (final_delivery_date - report_date).days
+
+                # Try to get inventory age
+                try:
+                    inv_age = row.get('Inventory Age')
+                    if pd.notna(inv_age):
+                        inventory_age_val = int(inv_age)
+                except:
+                    pass
+
                 snapshot = InventorySnapshot(
                     report_date=report_date,
                     po_number=po_number,
@@ -170,6 +186,9 @@ def ingest_inventory_file(file_path, app):
                     part_description=str(row.get('Part Description', '')).strip() if pd.notna(row.get('Part Description')) else None,
                     confirmed_supplier_ship_date=safe_to_date(row.get('Confirmed Supplier Ship Date')),
                     expected_delivery_date=safe_to_date(row.get('Expected Delivery Date & Actual Delivery Date to DWM Warehouse')),
+                    final_delivery_date=final_delivery_date,
+                    inventory_age=inventory_age_val,
+                    days_remaining=days_remaining_val,
                     po_quantity=safe_to_float(row.get('PO Quantity')),
                     total_po_amount=convert_currency(row.get('Total PO Amount'), currency_str),
                     qty_on_order=safe_to_float(row.get('DWM Qty On Order')),
