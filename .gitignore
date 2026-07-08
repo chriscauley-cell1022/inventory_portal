@@ -1,5 +1,4 @@
-inventory.db
-*.db
+# Only ignore temporary/backup .db files, not inventory.db
 __pycache__/
 *.py[cod]
 *$py.class
