@@ -193,7 +193,14 @@ def get_delivery_variance():
 def trigger_ingest():
     """Manually trigger data ingestion from folder"""
     default_folder = os.environ.get('DATA_FOLDER', os.path.join(basedir, 'OrebroSRD'))
-    folder_path = request.json.get('folder_path', default_folder) if request.json else default_folder
+    folder_path = default_folder
+
+    # Allow override via JSON body if provided
+    try:
+        if request.is_json and request.json:
+            folder_path = request.json.get('folder_path', default_folder)
+    except:
+        pass
 
     try:
         ingest_all_files(app, folder_path)
