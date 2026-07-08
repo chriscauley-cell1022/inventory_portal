@@ -21,14 +21,22 @@ with app.app_context():
     db.create_all()
     # Auto-ingest data on startup if database is empty and data folder exists
     latest_date = db.session.query(func.max(MetricSnapshot.snapshot_date)).scalar()
+    print(f"[STARTUP] Checking database... latest_date={latest_date}")
     if not latest_date:
         data_folder = os.environ.get('DATA_FOLDER', os.path.join(basedir, 'OrebroSRD'))
+        print(f"[STARTUP] Database empty, attempting auto-ingest from: {data_folder}")
+        print(f"[STARTUP] Folder exists: {os.path.exists(data_folder)}")
         if os.path.exists(data_folder):
             try:
+                print(f"[STARTUP] Starting ingest...")
                 ingest_all_files(app, data_folder)
-                print(f"Auto-ingested data from {data_folder}")
+                print(f"[STARTUP] Auto-ingested data from {data_folder}")
             except Exception as e:
-                print(f"Auto-ingest failed: {e}")
+                print(f"[STARTUP] Auto-ingest failed: {type(e).__name__}: {e}")
+                import traceback
+                traceback.print_exc()
+        else:
+            print(f"[STARTUP] Data folder not found at {data_folder}")
 
 @app.route('/api/health', methods=['GET'])
 def health():
