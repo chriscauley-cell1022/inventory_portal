@@ -16,6 +16,7 @@ interface Supplier {
   supplier: string;
   total_po_spend: number;
   total_po_quantity: number;
+  cfy_spend_pct_change: number | null;
   total_qty_on_order: number;
   total_qty_in_transit: number;
   total_qty_on_hand: number;
@@ -102,6 +103,10 @@ const getSortedSuppliers = (
       case 'wow_spend_pct_change':
         aVal = a.wow_spend_pct_change || 0;
         bVal = b.wow_spend_pct_change || 0;
+        break;
+      case 'cfy_spend_pct_change':
+        aVal = a.cfy_spend_pct_change || 0;
+        bVal = b.cfy_spend_pct_change || 0;
         break;
       case 'total_qty_on_order':
         aVal = a.total_qty_on_order || 0;
@@ -288,6 +293,9 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
               <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '90px' }} onClick={() => handleHeaderClick('wow_spend_pct_change')}>
                 % Δ from prior week {sortColumn === 'wow_spend_pct_change' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
+              <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '75px' }} onClick={() => handleHeaderClick('cfy_spend_pct_change')}>
+                % Δ CFY {sortColumn === 'cfy_spend_pct_change' && (sortDirection === 'asc' ? '↑' : '↓')}
+              </th>
               <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '75px' }} onClick={() => handleHeaderClick('total_qty_on_order')}>
                 On Order {sortColumn === 'total_qty_on_order' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
@@ -342,6 +350,17 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                   }}
                 >
                   {s.wow_spend_pct_change ? `${s.wow_spend_pct_change > 0 ? '+' : ''}${s.wow_spend_pct_change.toFixed(1)}%` : 'N/A'}
+                </td>
+                <td
+                  style={{
+                    padding: 12,
+                    textAlign: 'center',
+                    borderBottom: '1px solid #eee',
+                    color: (s.cfy_spend_pct_change || 0) > 0 ? '#4caf50' : (s.cfy_spend_pct_change || 0) < 0 ? '#f44336' : '#000',
+                    fontSize: 11,
+                  }}
+                >
+                  {s.cfy_spend_pct_change ? `${s.cfy_spend_pct_change > 0 ? '▲' : '▼'} ${Math.abs(s.cfy_spend_pct_change).toFixed(1)}%` : 'N/A'}
                 </td>
                 <td style={{ padding: 12, textAlign: 'center', borderBottom: '1px solid #eee', fontSize: 11 }}>
                   {formatNumber(s.total_qty_on_order)}

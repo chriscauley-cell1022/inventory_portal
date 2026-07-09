@@ -99,6 +99,7 @@ def get_suppliers():
     for s in suppliers:
         wow_spend_pct = None
         wow_qty_pct = None
+        cfy_spend_pct = None
 
         if s.wow_spend_change is not None and s.total_po_spend is not None:
             prev_spend = s.total_po_spend - (s.wow_spend_change or 0)
@@ -110,10 +111,26 @@ def get_suppliers():
             if prev_qty > 0:
                 wow_qty_pct = (s.wow_qty_change / prev_qty) * 100
 
+        # Calculate CFY (Current Fiscal Year) spend change
+        # Get first date of current fiscal year (Jan 1)
+        cfy_start_date = datetime(latest_date.year, 1, 1).date()
+        cfy_metrics = SupplierMetric.query.filter(
+            SupplierMetric.supplier == s.supplier,
+            SupplierMetric.snapshot_date >= cfy_start_date,
+            SupplierMetric.snapshot_date <= latest_date
+        ).order_by(SupplierMetric.snapshot_date).first()
+
+        if cfy_metrics and s.total_po_spend and cfy_metrics.total_po_spend:
+            spend_at_cfy_start = cfy_metrics.total_po_spend
+            current_spend = s.total_po_spend
+            if spend_at_cfy_start > 0:
+                cfy_spend_pct = ((current_spend - spend_at_cfy_start) / spend_at_cfy_start) * 100
+
         data.append({
             'supplier': s.supplier,
             'total_po_spend': round(s.total_po_spend or 0, 2),
             'total_po_quantity': s.total_po_quantity or 0,
+            'cfy_spend_pct_change': round(cfy_spend_pct, 1) if cfy_spend_pct is not None else None,
             'total_qty_on_order': s.total_qty_on_order or 0,
             'total_qty_in_transit': s.total_qty_in_transit or 0,
             'total_qty_on_hand': s.total_qty_on_hand or 0,
