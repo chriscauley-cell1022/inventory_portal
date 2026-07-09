@@ -96,6 +96,10 @@ const getSortedSuppliers = (
         aVal = calculateAvailableSpend(a);
         bVal = calculateAvailableSpend(b);
         break;
+      case 'po_spend_pct':
+        aVal = calculateAvailableSpend(a);
+        bVal = calculateAvailableSpend(b);
+        break;
       case 'wow_spend_change':
         aVal = a.wow_spend_change || 0;
         bVal = b.wow_spend_change || 0;
@@ -285,10 +289,13 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                 Supplier {sortColumn === 'supplier' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
               <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '110px' }} onClick={() => handleHeaderClick('po_spend')}>
-                PO Spend (€) {sortColumn === 'po_spend' && (sortDirection === 'asc' ? '↑' : '↓')}
+                PO Spend {sortColumn === 'po_spend' && (sortDirection === 'asc' ? '↑' : '↓')}
+              </th>
+              <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '75px' }} onClick={() => handleHeaderClick('po_spend_pct')}>
+                % spend {sortColumn === 'po_spend_pct' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
               <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '100px' }} onClick={() => handleHeaderClick('wow_spend_change')}>
-                Δ from prior week (€) {sortColumn === 'wow_spend_change' && (sortDirection === 'asc' ? '↑' : '↓')}
+                Δ from prior week {sortColumn === 'wow_spend_change' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
               <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '90px' }} onClick={() => handleHeaderClick('wow_spend_pct_change')}>
                 % Δ from prior week {sortColumn === 'wow_spend_pct_change' && (sortDirection === 'asc' ? '↑' : '↓')}
@@ -328,6 +335,11 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                 </td>
                 <td style={{ padding: 12, textAlign: 'center', borderBottom: '1px solid #eee', fontSize: 11 }}>
                   {formatCurrency(calculateAvailableSpend(s))}
+                </td>
+                <td style={{ padding: 12, textAlign: 'center', borderBottom: '1px solid #eee', fontSize: 11 }}>
+                  {suppliers.reduce((sum, sup) => sum + calculateAvailableSpend(sup), 0) > 0
+                    ? ((calculateAvailableSpend(s) / suppliers.reduce((sum, sup) => sum + calculateAvailableSpend(sup), 0)) * 100).toFixed(1)
+                    : '0.0'}%
                 </td>
                 <td
                   style={{
