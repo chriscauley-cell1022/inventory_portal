@@ -171,6 +171,13 @@ def ingest_inventory_file(file_path, app):
 
     with app.app_context():
         try:
+            # Load all existing PO numbers for this date once (much faster than per-row queries)
+            existing_pos = set(
+                row[0] for row in InventorySnapshot.query.filter_by(
+                    report_date=report_date
+                ).with_entities(InventorySnapshot.po_number).all()
+            )
+
             for idx, row in df.iterrows():
                 po_val = row.get('Purchase Order', '')
                 if pd.isna(po_val) or not po_val:
@@ -179,13 +186,8 @@ def ingest_inventory_file(file_path, app):
                 if not po_number or po_number == 'nan' or po_number == 'NaT':
                     continue
 
-                # Check if already exists
-                existing = InventorySnapshot.query.filter_by(
-                    report_date=report_date,
-                    po_number=po_number
-                ).first()
-
-                if existing:
+                # Check if already exists using the set (O(1) lookup)
+                if po_number in existing_pos:
                     continue
 
                 def safe_to_date(val):
