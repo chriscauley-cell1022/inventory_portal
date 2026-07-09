@@ -111,7 +111,7 @@ def get_suppliers():
             if prev_qty > 0:
                 wow_qty_pct = (s.wow_qty_change / prev_qty) * 100
 
-        # Calculate CFY (Current Fiscal Year) spend change
+        # Calculate CFY (Current Fiscal Year) open PO spend change
         # Get first date of current fiscal year (Jan 1)
         cfy_start_date = datetime(latest_date.year, 1, 1).date()
         cfy_metrics = SupplierMetric.query.filter(
@@ -120,11 +120,18 @@ def get_suppliers():
             SupplierMetric.snapshot_date <= latest_date
         ).order_by(SupplierMetric.snapshot_date).first()
 
-        if cfy_metrics and s.total_po_spend and cfy_metrics.total_po_spend:
-            spend_at_cfy_start = cfy_metrics.total_po_spend
-            current_spend = s.total_po_spend
-            if spend_at_cfy_start > 0:
-                cfy_spend_pct = ((current_spend - spend_at_cfy_start) / spend_at_cfy_start) * 100
+        if cfy_metrics:
+            # Calculate open PO spend as the sum of spend on order, in transit, and on hand
+            # This is derived from the calculateAvailableSpend logic in frontend
+            open_qty_cfy_start = (cfy_metrics.total_qty_on_order or 0) + (cfy_metrics.total_qty_in_transit or 0) + (cfy_metrics.total_qty_on_hand or 0)
+            open_qty_current = (s.total_qty_on_order or 0) + (s.total_qty_in_transit or 0) + (s.total_qty_on_hand or 0)
+
+            if s.total_po_quantity and s.total_po_quantity > 0 and cfy_metrics.total_po_quantity and cfy_metrics.total_po_quantity > 0:
+                spend_open_cfy_start = (open_qty_cfy_start / cfy_metrics.total_po_quantity) * (cfy_metrics.total_po_spend or 0)
+                spend_open_current = (open_qty_current / s.total_po_quantity) * (s.total_po_spend or 0)
+
+                if spend_open_cfy_start > 0:
+                    cfy_spend_pct = ((spend_open_current - spend_open_cfy_start) / spend_open_cfy_start) * 100
 
         data.append({
             'supplier': s.supplier,
