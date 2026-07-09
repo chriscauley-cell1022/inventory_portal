@@ -114,11 +114,19 @@ def get_suppliers():
         # Calculate CFY (Current Fiscal Year) open PO spend change
         # Get first date of current fiscal year (Jan 1)
         cfy_start_date = datetime(latest_date.year, 1, 1).date()
+
+        # Try to get first metric on or after Jan 1 for this supplier
         cfy_metrics = SupplierMetric.query.filter(
             SupplierMetric.supplier == s.supplier,
             SupplierMetric.snapshot_date >= cfy_start_date,
             SupplierMetric.snapshot_date <= latest_date
         ).order_by(SupplierMetric.snapshot_date).first()
+
+        # If supplier has no data in CFY, get their earliest data ever
+        if not cfy_metrics:
+            cfy_metrics = SupplierMetric.query.filter(
+                SupplierMetric.supplier == s.supplier
+            ).order_by(SupplierMetric.snapshot_date).first()
 
         if cfy_metrics:
             # Calculate open PO spend as the sum of spend on order, in transit, and on hand
