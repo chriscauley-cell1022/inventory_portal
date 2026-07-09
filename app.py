@@ -111,7 +111,7 @@ def get_suppliers():
             if prev_qty > 0:
                 wow_qty_pct = (s.wow_qty_change / prev_qty) * 100
 
-        # Calculate LFC (Last Fiscal Quarter Close) open PO spend change
+        # Calculate LFQ (Last Fiscal Quarter) open PO spend change
         # Get end date of last fiscal quarter
         # Fiscal quarters: Q1 ends Mar 31, Q2 ends Jun 30, Q3 ends Sep 30, Q4 ends Dec 31
         current_month = latest_date.month
@@ -127,23 +127,23 @@ def get_suppliers():
             last_quarter_end = datetime(current_year, 9, 30).date()
 
         # Get metric closest to or on the last quarter end date for this supplier
-        lfc_metrics = SupplierMetric.query.filter(
+        lfq_metrics = SupplierMetric.query.filter(
             SupplierMetric.supplier == s.supplier,
             SupplierMetric.snapshot_date <= last_quarter_end
         ).order_by(SupplierMetric.snapshot_date.desc()).first()
 
-        if lfc_metrics:
+        if lfq_metrics:
             # Calculate open PO spend as the sum of spend on order, in transit, and on hand
             # This is derived from the calculateAvailableSpend logic in frontend
-            open_qty_lfc = (lfc_metrics.total_qty_on_order or 0) + (lfc_metrics.total_qty_in_transit or 0) + (lfc_metrics.total_qty_on_hand or 0)
+            open_qty_lfq = (lfq_metrics.total_qty_on_order or 0) + (lfq_metrics.total_qty_in_transit or 0) + (lfq_metrics.total_qty_on_hand or 0)
             open_qty_current = (s.total_qty_on_order or 0) + (s.total_qty_in_transit or 0) + (s.total_qty_on_hand or 0)
 
-            if s.total_po_quantity and s.total_po_quantity > 0 and lfc_metrics.total_po_quantity and lfc_metrics.total_po_quantity > 0:
-                spend_open_lfc = (open_qty_lfc / lfc_metrics.total_po_quantity) * (lfc_metrics.total_po_spend or 0)
+            if s.total_po_quantity and s.total_po_quantity > 0 and lfq_metrics.total_po_quantity and lfq_metrics.total_po_quantity > 0:
+                spend_open_lfq = (open_qty_lfq / lfq_metrics.total_po_quantity) * (lfq_metrics.total_po_spend or 0)
                 spend_open_current = (open_qty_current / s.total_po_quantity) * (s.total_po_spend or 0)
 
-                if spend_open_lfc > 0:
-                    cfy_spend_pct = ((spend_open_current - spend_open_lfc) / spend_open_lfc) * 100
+                if spend_open_lfq > 0:
+                    cfy_spend_pct = ((spend_open_current - spend_open_lfq) / spend_open_lfq) * 100
 
         data.append({
             'supplier': s.supplier,
