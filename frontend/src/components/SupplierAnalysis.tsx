@@ -150,6 +150,18 @@ const getSortedSuppliers = (
   return sorted;
 };
 
+interface PO {
+  po_number: string;
+  po_date: string;
+  part_number: string;
+  order_qty: number;
+  total_amount: number;
+  requested_del_date: string;
+  confirmed_del_date: string;
+  wh_receipt_date: string;
+  status: string;
+}
+
 const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const [parts, setParts] = useState<AggregatedPart[]>([]);
@@ -158,6 +170,11 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [partsSortColumn, setPartsSortColumn] = useState<string>('total_amount');
   const [partsSortDirection, setPartsSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [selectedPart, setSelectedPart] = useState<AggregatedPart | null>(null);
+  const [pos, setPos] = useState<PO[]>([]);
+  const [loadingPOs, setLoadingPOs] = useState(false);
+  const [poSortColumn, setPoSortColumn] = useState<string>('po_number');
+  const [poSortDirection, setPoSortDirection] = useState<'asc' | 'desc'>('asc');
 
   const handleHeaderClick = (column: string) => {
     if (sortColumn === column) {
@@ -174,6 +191,15 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
     } else {
       setPartsSortColumn(column);
       setPartsSortDirection('desc');
+    }
+  };
+
+  const handlePoHeaderClick = (column: string) => {
+    if (poSortColumn === column) {
+      setPoSortDirection(poSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setPoSortColumn(column);
+      setPoSortDirection('asc');
     }
   };
 
@@ -269,6 +295,72 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
     } finally {
       setLoadingParts(false);
     }
+  };
+
+  const handlePartClick = async (part: AggregatedPart) => {
+    setSelectedPart(part);
+    setLoadingPOs(true);
+    try {
+      const posData: PO[] = await apiClient.getPartPOs(selectedSupplier!.supplier, part.part_number);
+      setPos(posData);
+    } catch (err) {
+      console.error('Error loading POs:', err);
+    } finally {
+      setLoadingPOs(false);
+    }
+  };
+
+  const getSortedPOs = (): PO[] => {
+    const sorted = [...pos];
+    sorted.sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+
+      switch (poSortColumn) {
+        case 'po_number':
+          aVal = (a.po_number || '').toLowerCase();
+          bVal = (b.po_number || '').toLowerCase();
+          return poSortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        case 'po_date':
+          aVal = a.po_date;
+          bVal = b.po_date;
+          break;
+        case 'order_qty':
+          aVal = a.order_qty || 0;
+          bVal = b.order_qty || 0;
+          break;
+        case 'total_amount':
+          aVal = a.total_amount || 0;
+          bVal = b.total_amount || 0;
+          break;
+        case 'requested_del_date':
+          aVal = a.requested_del_date;
+          bVal = b.requested_del_date;
+          break;
+        case 'confirmed_del_date':
+          aVal = a.confirmed_del_date;
+          bVal = b.confirmed_del_date;
+          break;
+        case 'wh_receipt_date':
+          aVal = a.wh_receipt_date;
+          bVal = b.wh_receipt_date;
+          break;
+        case 'status':
+          aVal = (a.status || '').toLowerCase();
+          bVal = (b.status || '').toLowerCase();
+          return poSortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        default:
+          return 0;
+      }
+
+      if (poSortDirection === 'asc') {
+        return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+      } else {
+        return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
+      }
+    });
+
+    return sorted;
   };
 
   if (!suppliers || suppliers.length === 0) {
@@ -504,8 +596,8 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                   </thead>
                   <tbody>
                     {getSortedParts(parts).map((p, idx) => (
-                      <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? '#f9f9f9' : 'white' }}>
-                        <td style={{ padding: 12, borderBottom: '1px solid #eee', fontSize: 11 }}>
+                      <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? '#f9f9f9' : 'white', cursor: 'pointer' }} onClick={() => handlePartClick(p)}>
+                        <td style={{ padding: 12, borderBottom: '1px solid #eee', fontSize: 11, color: '#1976d2', textDecoration: 'underline' }}>
                           {p.part_number}
                         </td>
                         <td style={{ padding: 12, borderBottom: '1px solid #eee', fontSize: 11, textAlign: 'left' }}>
@@ -530,6 +622,129 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                           {parts.reduce((sum, part) => sum + (part.total_amount || 0), 0) > 0
                             ? ((p.total_amount || 0) / parts.reduce((sum, part) => sum + (part.total_amount || 0), 0) * 100).toFixed(1)
                             : '0.0'}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {selectedPart && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1001,
+          }}
+          onClick={() => {
+            setSelectedPart(null);
+            setPos([]);
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: 'white',
+              borderRadius: 8,
+              padding: 30,
+              maxWidth: '95%',
+              maxHeight: '90%',
+              overflowY: 'auto',
+              boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h2>{selectedSupplier?.supplier} - {selectedPart.part_number}</h2>
+              <button
+                onClick={() => {
+                  setSelectedPart(null);
+                  setPos([]);
+                }}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#f44336',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                }}
+              >
+                Close
+              </button>
+            </div>
+
+            {loadingPOs ? (
+              <div>Loading POs...</div>
+            ) : pos.length === 0 ? (
+              <div>No POs found for this part.</div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#f5f5f5' }}>
+                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePoHeaderClick('po_number')}>
+                        PO Number {poSortColumn === 'po_number' && (poSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePoHeaderClick('po_date')}>
+                        PO Date {poSortColumn === 'po_date' && (poSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePoHeaderClick('order_qty')}>
+                        Order Qty {poSortColumn === 'order_qty' && (poSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th style={{ padding: 10, textAlign: 'left', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePoHeaderClick('total_amount')}>
+                        Total Amount {poSortColumn === 'total_amount' && (poSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePoHeaderClick('requested_del_date')}>
+                        Requested Del Date {poSortColumn === 'requested_del_date' && (poSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePoHeaderClick('confirmed_del_date')}>
+                        Confirmed Del Date {poSortColumn === 'confirmed_del_date' && (poSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePoHeaderClick('wh_receipt_date')}>
+                        WH Receipt Date {poSortColumn === 'wh_receipt_date' && (poSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePoHeaderClick('status')}>
+                        Status {poSortColumn === 'status' && (poSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {getSortedPOs().map((po, idx) => (
+                      <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? '#f9f9f9' : 'white' }}>
+                        <td style={{ padding: 10, textAlign: 'center', borderBottom: '1px solid #eee' }}>
+                          {po.po_number}
+                        </td>
+                        <td style={{ padding: 10, textAlign: 'center', borderBottom: '1px solid #eee' }}>
+                          {po.po_date}
+                        </td>
+                        <td style={{ padding: 10, textAlign: 'center', borderBottom: '1px solid #eee' }}>
+                          {formatNumber(po.order_qty)}
+                        </td>
+                        <td style={{ padding: 10, textAlign: 'left', borderBottom: '1px solid #eee' }}>
+                          {formatCurrency(po.total_amount)}
+                        </td>
+                        <td style={{ padding: 10, textAlign: 'center', borderBottom: '1px solid #eee' }}>
+                          {po.requested_del_date}
+                        </td>
+                        <td style={{ padding: 10, textAlign: 'center', borderBottom: '1px solid #eee' }}>
+                          {po.confirmed_del_date}
+                        </td>
+                        <td style={{ padding: 10, textAlign: 'center', borderBottom: '1px solid #eee' }}>
+                          {po.wh_receipt_date}
+                        </td>
+                        <td style={{ padding: 10, textAlign: 'center', borderBottom: '1px solid #eee' }}>
+                          {po.status}
                         </td>
                       </tr>
                     ))}

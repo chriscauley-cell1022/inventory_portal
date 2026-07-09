@@ -26,6 +26,11 @@ export const apiClient = {
     return res.json();
   },
 
+  async getPartPOs(supplier: string, partNumber: string) {
+    const res = await fetch(`${API_BASE}/suppliers/${encodeURIComponent(supplier)}/parts/${encodeURIComponent(partNumber)}/pos`);
+    return res.json();
+  },
+
   async getDeliveryVariance() {
     const res = await fetch(`${API_BASE}/delivery-variance`);
     return res.json();
