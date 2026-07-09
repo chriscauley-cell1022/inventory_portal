@@ -761,13 +761,13 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                           borderBottom: '1px solid #eee',
                           color: (() => {
                             const days = calculateDaysEarlyLate(po.requested_del_date, po.confirmed_del_date);
-                            return days === null ? '#000' : days < 0 ? '#f44336' : '#000';
+                            return days === null ? '#000' : days > 0 ? '#f44336' : '#4caf50';
                           })()
                         }}>
                           {(() => {
                             const days = calculateDaysEarlyLate(po.requested_del_date, po.confirmed_del_date);
                             if (days === null) return 'N/A';
-                            return days < 0 ? `${Math.abs(days)} days late` : `${days} days early`;
+                            return days > 0 ? `${days} days late` : `${Math.abs(days)} days early`;
                           })()}
                         </td>
                         <td style={{ padding: 10, textAlign: 'center', borderBottom: '1px solid #eee' }}>
