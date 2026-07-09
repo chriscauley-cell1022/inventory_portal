@@ -310,6 +310,14 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
     }
   };
 
+  const calculateDaysEarlyLate = (requestedDate: string, confirmedDate: string): number | null => {
+    if (requestedDate === 'N/A' || confirmedDate === 'N/A') return null;
+    const requested = new Date(requestedDate);
+    const confirmed = new Date(confirmedDate);
+    const diffTime = confirmed.getTime() - requested.getTime();
+    return Math.round(diffTime / (1000 * 60 * 60 * 24));
+  };
+
   const getSortedPOs = (): PO[] => {
     const sorted = [...pos];
     sorted.sort((a, b) => {
@@ -340,6 +348,10 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
         case 'confirmed_del_date':
           aVal = a.confirmed_del_date;
           bVal = b.confirmed_del_date;
+          break;
+        case 'days_early_late':
+          aVal = calculateDaysEarlyLate(a.requested_del_date, a.confirmed_del_date) || 0;
+          bVal = calculateDaysEarlyLate(b.requested_del_date, b.confirmed_del_date) || 0;
           break;
         case 'wh_receipt_date':
           aVal = a.wh_receipt_date;
@@ -711,6 +723,9 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                       <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePoHeaderClick('confirmed_del_date')}>
                         Confirmed Del Date {poSortColumn === 'confirmed_del_date' && (poSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
+                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePoHeaderClick('days_early_late')}>
+                        Days Confirmed Early/Late {poSortColumn === 'days_early_late' && (poSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
                       <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePoHeaderClick('wh_receipt_date')}>
                         WH Receipt Date {poSortColumn === 'wh_receipt_date' && (poSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
@@ -739,6 +754,21 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                         </td>
                         <td style={{ padding: 10, textAlign: 'center', borderBottom: '1px solid #eee' }}>
                           {po.confirmed_del_date}
+                        </td>
+                        <td style={{
+                          padding: 10,
+                          textAlign: 'center',
+                          borderBottom: '1px solid #eee',
+                          color: (() => {
+                            const days = calculateDaysEarlyLate(po.requested_del_date, po.confirmed_del_date);
+                            return days === null ? '#000' : days < 0 ? '#f44336' : '#000';
+                          })()
+                        }}>
+                          {(() => {
+                            const days = calculateDaysEarlyLate(po.requested_del_date, po.confirmed_del_date);
+                            if (days === null) return 'N/A';
+                            return days < 0 ? `${Math.abs(days)} days late` : `${days} days early`;
+                          })()}
                         </td>
                         <td style={{ padding: 10, textAlign: 'center', borderBottom: '1px solid #eee' }}>
                           {po.wh_receipt_date}
