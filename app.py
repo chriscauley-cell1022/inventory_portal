@@ -111,35 +111,39 @@ def get_suppliers():
             if prev_qty > 0:
                 wow_qty_pct = (s.wow_qty_change / prev_qty) * 100
 
-        # Calculate CFY (Current Fiscal Year) open PO spend change
-        # Get first date of current fiscal year (Jan 1)
-        cfy_start_date = datetime(latest_date.year, 1, 1).date()
+        # Calculate LFC (Last Fiscal Quarter Close) open PO spend change
+        # Get end date of last fiscal quarter
+        # Fiscal quarters: Q1 ends Mar 31, Q2 ends Jun 30, Q3 ends Sep 30, Q4 ends Dec 31
+        current_month = latest_date.month
+        current_year = latest_date.year
 
-        # Try to get first metric on or after Jan 1 for this supplier
-        cfy_metrics = SupplierMetric.query.filter(
+        if current_month <= 3:  # Q1 (Jan-Mar): last quarter ended Dec 31 of previous year
+            last_quarter_end = datetime(current_year - 1, 12, 31).date()
+        elif current_month <= 6:  # Q2 (Apr-Jun): last quarter ended Mar 31
+            last_quarter_end = datetime(current_year, 3, 31).date()
+        elif current_month <= 9:  # Q3 (Jul-Sep): last quarter ended Jun 30
+            last_quarter_end = datetime(current_year, 6, 30).date()
+        else:  # Q4 (Oct-Dec): last quarter ended Sep 30
+            last_quarter_end = datetime(current_year, 9, 30).date()
+
+        # Get metric closest to or on the last quarter end date for this supplier
+        lfc_metrics = SupplierMetric.query.filter(
             SupplierMetric.supplier == s.supplier,
-            SupplierMetric.snapshot_date >= cfy_start_date,
-            SupplierMetric.snapshot_date <= latest_date
-        ).order_by(SupplierMetric.snapshot_date).first()
+            SupplierMetric.snapshot_date <= last_quarter_end
+        ).order_by(SupplierMetric.snapshot_date.desc()).first()
 
-        # If supplier has no data in CFY, get their earliest data ever
-        if not cfy_metrics:
-            cfy_metrics = SupplierMetric.query.filter(
-                SupplierMetric.supplier == s.supplier
-            ).order_by(SupplierMetric.snapshot_date).first()
-
-        if cfy_metrics:
+        if lfc_metrics:
             # Calculate open PO spend as the sum of spend on order, in transit, and on hand
             # This is derived from the calculateAvailableSpend logic in frontend
-            open_qty_cfy_start = (cfy_metrics.total_qty_on_order or 0) + (cfy_metrics.total_qty_in_transit or 0) + (cfy_metrics.total_qty_on_hand or 0)
+            open_qty_lfc = (lfc_metrics.total_qty_on_order or 0) + (lfc_metrics.total_qty_in_transit or 0) + (lfc_metrics.total_qty_on_hand or 0)
             open_qty_current = (s.total_qty_on_order or 0) + (s.total_qty_in_transit or 0) + (s.total_qty_on_hand or 0)
 
-            if s.total_po_quantity and s.total_po_quantity > 0 and cfy_metrics.total_po_quantity and cfy_metrics.total_po_quantity > 0:
-                spend_open_cfy_start = (open_qty_cfy_start / cfy_metrics.total_po_quantity) * (cfy_metrics.total_po_spend or 0)
+            if s.total_po_quantity and s.total_po_quantity > 0 and lfc_metrics.total_po_quantity and lfc_metrics.total_po_quantity > 0:
+                spend_open_lfc = (open_qty_lfc / lfc_metrics.total_po_quantity) * (lfc_metrics.total_po_spend or 0)
                 spend_open_current = (open_qty_current / s.total_po_quantity) * (s.total_po_spend or 0)
 
-                if spend_open_cfy_start > 0:
-                    cfy_spend_pct = ((spend_open_current - spend_open_cfy_start) / spend_open_cfy_start) * 100
+                if spend_open_lfc > 0:
+                    cfy_spend_pct = ((spend_open_current - spend_open_lfc) / spend_open_lfc) * 100
 
         data.append({
             'supplier': s.supplier,
