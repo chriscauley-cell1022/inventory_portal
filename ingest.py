@@ -223,6 +223,11 @@ def ingest_inventory_file(file_path, app):
                 except:
                     pass
 
+                # Try to get actual delivery date (populate when qty_on_hand > 0)
+                actual_delivery_date = None
+                if safe_to_float(row.get('DWM Qty On Hand', 0)) > 0:
+                    actual_delivery_date = safe_to_date(row.get('Actual Delivery Date')) or safe_to_date(row.get('Expected Delivery Date & Actual Delivery Date to DWM Warehouse'))
+
                 snapshot = InventorySnapshot(
                     report_date=report_date,
                     po_number=po_number,
@@ -232,6 +237,7 @@ def ingest_inventory_file(file_path, app):
                     part_description=str(row.get('Part Description', '')).strip() if pd.notna(row.get('Part Description')) else None,
                     confirmed_supplier_ship_date=safe_to_date(row.get('Confirmed Supplier Ship Date')),
                     expected_delivery_date=safe_to_date(row.get('Expected Delivery Date & Actual Delivery Date to DWM Warehouse')),
+                    actual_delivery_date=actual_delivery_date,
                     final_delivery_date=final_delivery_date,
                     inventory_age=inventory_age_val,
                     days_remaining=days_remaining_val,

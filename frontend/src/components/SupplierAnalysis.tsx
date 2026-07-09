@@ -705,31 +705,31 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                   <thead>
                     <tr style={{ backgroundColor: '#f5f5f5' }}>
-                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePoHeaderClick('po_number')}>
-                        PO Number {poSortColumn === 'po_number' && (poSortDirection === 'asc' ? '↑' : '↓')}
+                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '80px' }} onClick={() => handlePoHeaderClick('po_number')}>
+                        PO<br/>Number {poSortColumn === 'po_number' && (poSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
-                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePoHeaderClick('po_date')}>
-                        PO Date {poSortColumn === 'po_date' && (poSortDirection === 'asc' ? '↑' : '↓')}
+                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '75px' }} onClick={() => handlePoHeaderClick('po_date')}>
+                        PO<br/>Date {poSortColumn === 'po_date' && (poSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
-                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePoHeaderClick('order_qty')}>
-                        Order Qty {poSortColumn === 'order_qty' && (poSortDirection === 'asc' ? '↑' : '↓')}
+                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '75px' }} onClick={() => handlePoHeaderClick('order_qty')}>
+                        Order<br/>Qty {poSortColumn === 'order_qty' && (poSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
-                      <th style={{ padding: 10, textAlign: 'left', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePoHeaderClick('total_amount')}>
-                        Total Amount {poSortColumn === 'total_amount' && (poSortDirection === 'asc' ? '↑' : '↓')}
+                      <th style={{ padding: 10, textAlign: 'left', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '90px' }} onClick={() => handlePoHeaderClick('total_amount')}>
+                        Total<br/>Amount {poSortColumn === 'total_amount' && (poSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
-                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePoHeaderClick('requested_del_date')}>
-                        Requested Del Date {poSortColumn === 'requested_del_date' && (poSortDirection === 'asc' ? '↑' : '↓')}
+                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '85px' }} onClick={() => handlePoHeaderClick('requested_del_date')}>
+                        Requested<br/>Del Date {poSortColumn === 'requested_del_date' && (poSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
-                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePoHeaderClick('confirmed_del_date')}>
-                        Confirmed Del Date {poSortColumn === 'confirmed_del_date' && (poSortDirection === 'asc' ? '↑' : '↓')}
+                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '85px' }} onClick={() => handlePoHeaderClick('confirmed_del_date')}>
+                        Confirmed<br/>Del Date {poSortColumn === 'confirmed_del_date' && (poSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
-                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePoHeaderClick('days_early_late')}>
-                        Days Confirmed Early/Late {poSortColumn === 'days_early_late' && (poSortDirection === 'asc' ? '↑' : '↓')}
+                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '95px' }} onClick={() => handlePoHeaderClick('days_early_late')}>
+                        Days<br/>Confirmed<br/>Early/Late {poSortColumn === 'days_early_late' && (poSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
-                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePoHeaderClick('wh_receipt_date')}>
-                        WH Receipt Date {poSortColumn === 'wh_receipt_date' && (poSortDirection === 'asc' ? '↑' : '↓')}
+                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '90px' }} onClick={() => handlePoHeaderClick('wh_receipt_date')}>
+                        Warehouse<br/>Receipt<br/>Date {poSortColumn === 'wh_receipt_date' && (poSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
-                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePoHeaderClick('status')}>
+                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '70px' }} onClick={() => handlePoHeaderClick('status')}>
                         Status {poSortColumn === 'status' && (poSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
                     </tr>
