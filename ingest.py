@@ -431,36 +431,55 @@ def calculate_metrics(report_date, app):
 
         db.session.commit()
 
-def ingest_all_files(app, folder_path):
-    """Ingest all inventory files from folder (only new files since last ingest)"""
-    inventory_files = list(Path(folder_path).glob('**/*.xlsx'))
-    inventory_files = [f for f in inventory_files if 'Inventory Report' in f.name or 'Inventory as of' in f.name]
+def ingest_all_files(app, folder_path, force_reprocess=False):
+    """Ingest all inventory files from folder"""
+    try:
+        inventory_files = list(Path(folder_path).glob('**/*.xlsx'))
+        inventory_files = [f for f in inventory_files if 'Inventory Report' in f.name or 'Inventory as of' in f.name]
 
-    # Sort by date
-    inventory_files = sorted(inventory_files)
+        # Sort by date
+        inventory_files = sorted(inventory_files)
 
-    with app.app_context():
-        # Get all dates already in database
-        existing_dates = set(
-            row[0] for row in InventorySnapshot.query.with_entities(
-                InventorySnapshot.report_date
-            ).distinct().all()
-        )
+        with app.app_context():
+            if force_reprocess:
+                # Clear all existing data for re-ingest
+                print("Force reprocessing: clearing existing data...")
+                InventorySnapshot.query.delete()
+                MetricSnapshot.query.delete()
+                SupplierMetric.query.delete()
+                DeliveryVariance.query.delete()
+                db.session.commit()
+                existing_dates = set()
+            else:
+                # Get all dates already in database
+                existing_dates = set(
+                    row[0] for row in InventorySnapshot.query.with_entities(
+                        InventorySnapshot.report_date
+                    ).distinct().all()
+                )
 
-    ingested_count = 0
-    for file_path in inventory_files:
-        report_date = extract_report_date_from_filename(file_path.name)
+        ingested_count = 0
+        for file_path in inventory_files:
+            report_date = extract_report_date_from_filename(file_path.name)
 
-        # Skip if this date is already in database
-        if report_date and report_date in existing_dates:
-            print(f"Skipping {file_path.name} (already ingested)")
-            continue
+            # Skip if this date is already in database (unless force reprocess)
+            if not force_reprocess and report_date and report_date in existing_dates:
+                print(f"Skipping {file_path.name} (already ingested)")
+                continue
 
-        if ingest_inventory_file(str(file_path), app):
-            ingested_count += 1
+            if ingest_inventory_file(str(file_path), app):
+                ingested_count += 1
 
-    print(f"Finished ingesting {ingested_count} new files")
+        print(f"Finished ingesting {ingested_count} files")
 
-    # Create backup after successful ingest
-    if ingested_count > 0:
-        backup_database(app)
+        # Create backup after successful ingest
+        if ingested_count > 0:
+            backup_database(app)
+
+        return True
+
+    except Exception as e:
+        print(f"Error in ingest_all_files: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
