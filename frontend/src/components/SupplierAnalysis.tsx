@@ -511,22 +511,22 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                         <td style={{ padding: 12, borderBottom: '1px solid #eee', fontSize: 11, textAlign: 'left' }}>
                           {p.part_description}
                         </td>
-                        <td style={{ padding: 12, textAlign: 'right', borderBottom: '1px solid #eee' }}>
+                        <td style={{ padding: 12, textAlign: 'center', borderBottom: '1px solid #eee' }}>
                           {formatNumber(p.qty_on_order)}
                         </td>
-                        <td style={{ padding: 12, textAlign: 'right', borderBottom: '1px solid #eee' }}>
+                        <td style={{ padding: 12, textAlign: 'center', borderBottom: '1px solid #eee' }}>
                           {formatNumber(p.qty_in_transit)}
                         </td>
-                        <td style={{ padding: 12, textAlign: 'right', borderBottom: '1px solid #eee' }}>
+                        <td style={{ padding: 12, textAlign: 'center', borderBottom: '1px solid #eee' }}>
                           {formatNumber(p.qty_on_hand)}
                         </td>
                         <td style={{ padding: 12, textAlign: 'right', borderBottom: '1px solid #eee' }}>
                           {p.po_count}
                         </td>
-                        <td style={{ padding: 12, textAlign: 'right', borderBottom: '1px solid #eee' }}>
+                        <td style={{ padding: 12, textAlign: 'left', borderBottom: '1px solid #eee' }}>
                           {formatCurrency(p.total_amount)}
                         </td>
-                        <td style={{ padding: 12, textAlign: 'right', borderBottom: '1px solid #eee' }}>
+                        <td style={{ padding: 12, textAlign: 'center', borderBottom: '1px solid #eee' }}>
                           {parts.reduce((sum, part) => sum + (part.total_amount || 0), 0) > 0
                             ? ((p.total_amount || 0) / parts.reduce((sum, part) => sum + (part.total_amount || 0), 0) * 100).toFixed(1)
                             : '0.0'}%
