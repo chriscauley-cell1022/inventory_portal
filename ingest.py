@@ -432,19 +432,34 @@ def calculate_metrics(report_date, app):
         db.session.commit()
 
 def ingest_all_files(app, folder_path):
-    """Ingest all inventory files from folder"""
+    """Ingest all inventory files from folder (only new files since last ingest)"""
     inventory_files = list(Path(folder_path).glob('**/*.xlsx'))
     inventory_files = [f for f in inventory_files if 'Inventory Report' in f.name or 'Inventory as of' in f.name]
 
     # Sort by date
     inventory_files = sorted(inventory_files)
 
+    with app.app_context():
+        # Get all dates already in database
+        existing_dates = set(
+            row[0] for row in InventorySnapshot.query.with_entities(
+                InventorySnapshot.report_date
+            ).distinct().all()
+        )
+
     ingested_count = 0
     for file_path in inventory_files:
+        report_date = extract_report_date_from_filename(file_path.name)
+
+        # Skip if this date is already in database
+        if report_date and report_date in existing_dates:
+            print(f"Skipping {file_path.name} (already ingested)")
+            continue
+
         if ingest_inventory_file(str(file_path), app):
             ingested_count += 1
 
-    print(f"Finished ingesting {ingested_count} files")
+    print(f"Finished ingesting {ingested_count} new files")
 
     # Create backup after successful ingest
     if ingested_count > 0:
