@@ -212,6 +212,10 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
           aVal = a.po_count || 0;
           bVal = b.po_count || 0;
           break;
+        case 'spend_pct':
+          aVal = a.total_amount || 0;
+          bVal = b.total_amount || 0;
+          break;
         default:
           return 0;
       }
@@ -292,7 +296,7 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                 PO Spend {sortColumn === 'po_spend' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
               <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '75px' }} onClick={() => handleHeaderClick('po_spend_pct')}>
-                % spend {sortColumn === 'po_spend_pct' && (sortDirection === 'asc' ? '↑' : '↓')}
+                % Spend {sortColumn === 'po_spend_pct' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
               <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '100px' }} onClick={() => handleHeaderClick('wow_spend_change')}>
                 Δ from prior week {sortColumn === 'wow_spend_change' && (sortDirection === 'asc' ? '↑' : '↓')}
@@ -487,11 +491,14 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                       <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePartsHeaderClick('qty_on_hand')}>
                         On Hand {partsSortColumn === 'qty_on_hand' && (partsSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
-                      <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePartsHeaderClick('total_amount')}>
-                        Total Amount (€) {partsSortColumn === 'total_amount' && (partsSortDirection === 'asc' ? '↑' : '↓')}
-                      </th>
                       <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePartsHeaderClick('po_count')}>
                         Total Qty {partsSortColumn === 'po_count' && (partsSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePartsHeaderClick('total_amount')}>
+                        Total Spend {partsSortColumn === 'total_amount' && (partsSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th style={{ padding: 12, textAlign: 'right', borderBottom: '2px solid #ddd', cursor: 'pointer' }} onClick={() => handlePartsHeaderClick('spend_pct')}>
+                        % Spend {partsSortColumn === 'spend_pct' && (partsSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
                     </tr>
                   </thead>
@@ -514,10 +521,15 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                           {formatNumber(p.qty_on_hand)}
                         </td>
                         <td style={{ padding: 12, textAlign: 'right', borderBottom: '1px solid #eee' }}>
+                          {p.po_count}
+                        </td>
+                        <td style={{ padding: 12, textAlign: 'right', borderBottom: '1px solid #eee' }}>
                           {formatCurrency(p.total_amount)}
                         </td>
                         <td style={{ padding: 12, textAlign: 'right', borderBottom: '1px solid #eee' }}>
-                          {p.po_count}
+                          {parts.reduce((sum, part) => sum + (part.total_amount || 0), 0) > 0
+                            ? ((p.total_amount || 0) / parts.reduce((sum, part) => sum + (part.total_amount || 0), 0) * 100).toFixed(1)
+                            : '0.0'}%
                         </td>
                       </tr>
                     ))}
