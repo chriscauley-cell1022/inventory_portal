@@ -520,7 +520,7 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                         <td style={{ padding: 12, textAlign: 'center', borderBottom: '1px solid #eee' }}>
                           {formatNumber(p.qty_on_hand)}
                         </td>
-                        <td style={{ padding: 12, textAlign: 'right', borderBottom: '1px solid #eee' }}>
+                        <td style={{ padding: 12, textAlign: 'center', borderBottom: '1px solid #eee' }}>
                           {p.po_count}
                         </td>
                         <td style={{ padding: 12, textAlign: 'left', borderBottom: '1px solid #eee' }}>
