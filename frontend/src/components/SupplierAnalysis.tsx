@@ -723,8 +723,8 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                       <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '85px' }} onClick={() => handlePoHeaderClick('confirmed_del_date')}>
                         Confirmed<br/>Del Date {poSortColumn === 'confirmed_del_date' && (poSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
-                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '95px' }} onClick={() => handlePoHeaderClick('days_early_late')}>
-                        Days<br/>Confirmed<br/>Early/Late {poSortColumn === 'days_early_late' && (poSortDirection === 'asc' ? '↑' : '↓')}
+                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '85px' }} onClick={() => handlePoHeaderClick('days_early_late')}>
+                        Confirmed<br/>Early/Late {poSortColumn === 'days_early_late' && (poSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
                       <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '90px' }} onClick={() => handlePoHeaderClick('wh_receipt_date')}>
                         Warehouse<br/>Receipt<br/>Date {poSortColumn === 'wh_receipt_date' && (poSortDirection === 'asc' ? '↑' : '↓')}
