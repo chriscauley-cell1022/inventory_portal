@@ -225,10 +225,11 @@ def ingest_inventory_file(file_path, app):
                 except:
                     pass
 
-                # Try to get actual delivery date (populate when qty_on_hand > 0)
+                # Populate actual delivery date when qty_on_hand > 0
                 actual_delivery_date = None
-                if safe_to_float(row.get('DWM Qty On Hand', 0)) > 0:
-                    actual_delivery_date = safe_to_date(row.get('Actual Delivery Date')) or safe_to_date(row.get('Expected Delivery Date & Actual Delivery Date to DWM Warehouse'))
+                qty_on_hand = safe_to_float(row.get('DWM Qty On Hand', 0))
+                if qty_on_hand > 0:
+                    actual_delivery_date = safe_to_date(row.get('Expected Delivery Date & Actual Delivery Date to DWM Warehouse'))
 
                 snapshot = InventorySnapshot(
                     report_date=report_date,
