@@ -212,15 +212,15 @@ def ingest_inventory_file(file_path, app):
 
                 # Check if already exists using the set (O(1) lookup)
                 if po_number in existing_pos:
-                    # Update existing record with corrected dates
-                    existing_record = InventorySnapshot.query.filter_by(
-                        report_date=report_date,
-                        po_number=po_number
-                    ).first()
+                    # Update ALL existing records with this PO number (across all dates) with corrected dates
+                    existing_records = InventorySnapshot.query.filter_by(po_number=po_number).all()
 
-                    if existing_record:
-                        existing_record.confirmed_supplier_ship_date = safe_to_date(row.get('PO Ship Date'))
-                        existing_record.expected_delivery_date = safe_to_date(row.get('Confirmed Supplier Ship Date'))
+                    po_ship_date = safe_to_date(row.get('PO Ship Date'))
+                    confirmed_ship_date = safe_to_date(row.get('Confirmed Supplier Ship Date'))
+
+                    for existing_record in existing_records:
+                        existing_record.confirmed_supplier_ship_date = po_ship_date
+                        existing_record.expected_delivery_date = confirmed_ship_date
                         if not existing_record.actual_delivery_date:
                             existing_record.actual_delivery_date = safe_to_date(row.get('Expected Delivery Date & Actual Delivery Date to DWM Warehouse'))
                         db.session.commit()
