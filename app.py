@@ -327,6 +327,20 @@ def trigger_ingest():
         pass
 
     try:
+        # Debug: check if folder exists and what files are in it
+        import os as os_module
+        folder_exists = os_module.path.exists(folder_path)
+        files_in_folder = []
+        if folder_exists:
+            try:
+                files_in_folder = [f for f in os_module.listdir(folder_path) if f.endswith('.xlsx')]
+            except:
+                pass
+
+        print(f"DEBUG: Ingest folder_path={folder_path}, exists={folder_exists}, xlsx_files={len(files_in_folder)}")
+        if files_in_folder:
+            print(f"DEBUG: Files found: {files_in_folder[:5]}")
+
         success = ingest_all_files(app, folder_path, clear_latest=clear_latest)
         if success:
             # After ingest, populate any missing warehouse dates
@@ -340,7 +354,7 @@ def trigger_ingest():
                 db.session.commit()
             return jsonify({'status': 'success', 'message': 'Data ingestion completed', 'folder': folder_path, 'warehouse_dates_populated': updated})
         else:
-            return jsonify({'status': 'error', 'message': 'Data ingestion failed', 'attempted_folder': folder_path}), 500
+            return jsonify({'status': 'error', 'message': 'Data ingestion failed', 'attempted_folder': folder_path, 'folder_exists': folder_exists, 'xlsx_count': len(files_in_folder)}), 500
     except Exception as e:
         import traceback
         traceback.print_exc()
