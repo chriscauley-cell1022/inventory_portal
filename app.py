@@ -355,18 +355,15 @@ def fix_dates():
 
         data_folder = os.environ.get('DATA_FOLDER', os.path.join(basedir, 'OrebroSRD'))
 
-        # Find the file with "as of July 3" or similar in the name, or just use the most recent
-        latest_file = None
-        for f in sorted(Path(data_folder).glob('*.xlsx'), reverse=True):
-            if 'July 3' in f.name or 'as of' in f.name:
-                latest_file = f
-                break
+        # Look for the July 3, 2026 file specifically
+        target_filename = 'DWM-Taulia_OrebroSRD Inventory as of July 3, 2026.xlsx'
+        latest_file = Path(data_folder) / target_filename
 
-        if not latest_file:
+        if not latest_file.exists():
+            # List available files for debugging
             excel_files = sorted(Path(data_folder).glob('*.xlsx'))
-            if not excel_files:
-                return jsonify({'status': 'error', 'message': 'No Excel files found'}), 404
-            latest_file = excel_files[-1]
+            available = [f.name for f in excel_files]
+            return jsonify({'status': 'error', 'message': f'File not found: {target_filename}', 'available_files': available[-5:]}), 404
 
         print(f"Reading dates from: {latest_file.name}")
 
