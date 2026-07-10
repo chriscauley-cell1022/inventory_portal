@@ -489,6 +489,18 @@ def ingest_all_files(app, folder_path, clear_latest=False):
 
         print(f"Finished ingesting {ingested_count} files")
 
+        # Populate missing warehouse dates after successful ingest
+        if ingested_count > 0:
+            with app.app_context():
+                updated = InventorySnapshot.query.filter(
+                    InventorySnapshot.actual_delivery_date == None,
+                    InventorySnapshot.expected_delivery_date != None
+                ).update({
+                    InventorySnapshot.actual_delivery_date: InventorySnapshot.expected_delivery_date
+                })
+                db.session.commit()
+                print(f"✓ Populated {updated} missing warehouse dates with expected delivery dates")
+
         # Create backup after successful ingest
         if ingested_count > 0:
             backup_database(app)
