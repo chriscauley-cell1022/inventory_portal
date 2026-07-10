@@ -346,6 +346,77 @@ def trigger_ingest():
         traceback.print_exc()
         return jsonify({'status': 'error', 'message': str(e), 'attempted_folder': folder_path}), 500
 
+@app.route('/api/fix-dates', methods=['POST', 'GET'])
+def fix_dates():
+    """Read the latest Excel file and correct date fields in database"""
+    try:
+        import pandas as pd
+        from openpyxl import load_workbook
+
+        # Find the most recent Excel file
+        data_folder = os.environ.get('DATA_FOLDER', os.path.join(basedir, 'OrebroSRD'))
+        excel_files = sorted(Path(data_folder).glob('*.xlsx'))
+        if not excel_files:
+            return jsonify({'status': 'error', 'message': 'No Excel files found'}), 404
+
+        latest_file = excel_files[-1]
+        print(f"Reading dates from: {latest_file.name}")
+
+        # Parse the file
+        wb = load_workbook(latest_file, data_only=True)
+        sheet = wb['Inventory Report']
+
+        # Find header row
+        header_row = None
+        for row_idx in range(1, 50):
+            row = [cell.value for cell in sheet[row_idx]]
+            if any(v == 'Purchase Order' for v in row):
+                header_row = row_idx
+                break
+
+        if not header_row:
+            return jsonify({'status': 'error', 'message': 'Could not find header row'}), 400
+
+        # Read with correct header
+        df = pd.read_excel(latest_file, sheet_name='Inventory Report', header=header_row-1)
+        df.columns = df.columns.str.strip()
+
+        # Helper to parse dates
+        def safe_to_date(val):
+            if pd.isna(val) or not val:
+                return None
+            try:
+                try:
+                    return pd.to_datetime(val, format='%d-%b-%y').date()
+                except:
+                    return pd.to_datetime(val).date()
+            except:
+                return None
+
+        # Update database
+        updated_count = 0
+        for _, row in df.iterrows():
+            po_num = row.get('Purchase Order')
+            if not po_num:
+                continue
+
+            po_ship_date = safe_to_date(row.get('PO Ship Date'))
+            confirmed_ship_date = safe_to_date(row.get('Confirmed Supplier Ship Date'))
+
+            if po_ship_date or confirmed_ship_date:
+                records = InventorySnapshot.query.filter_by(po_number=str(po_num).strip()).all()
+                for record in records:
+                    record.confirmed_supplier_ship_date = po_ship_date
+                    record.expected_delivery_date = confirmed_ship_date
+                    db.session.commit()
+                    updated_count += 1
+
+        return jsonify({'status': 'success', 'message': f'Fixed {updated_count} records', 'file': latest_file.name})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 @app.route('/api/data-status', methods=['GET'])
 def check_data_status():
     """Check if data has been ingested"""
