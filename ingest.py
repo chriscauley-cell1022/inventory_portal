@@ -476,10 +476,15 @@ def ingest_all_files(app, folder_path, clear_latest=False):
         ingested_count = 0
         # Process only the most recent file (alphabetically, since files are named YYYY-MM-DD_...)
         if inventory_files:
+            print(f"Found {len(inventory_files)} inventory files")
+            for f in sorted(inventory_files)[-5:]:  # Show last 5 files
+                print(f"  - {f.name}")
             latest_file = sorted(inventory_files)[-1]
             print(f"Processing latest file: {latest_file.name}")
             if ingest_inventory_file(str(latest_file), app):
                 ingested_count += 1
+        else:
+            print("ERROR: No inventory files found!")
 
         print(f"Finished ingesting {ingested_count} files")
 
