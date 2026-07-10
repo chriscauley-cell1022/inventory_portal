@@ -171,6 +171,29 @@ def ingest_inventory_file(file_path, app):
 
     with app.app_context():
         try:
+            # Define date/float conversion functions
+            def safe_to_date(val):
+                if pd.isna(val) or not val:
+                    return None
+                try:
+                    # Try multiple date formats
+                    # First try the DD-Mon-YY format (e.g., "10-Apr-26")
+                    try:
+                        return pd.to_datetime(val, format='%d-%b-%y').date()
+                    except:
+                        # Fall back to pandas auto-detection
+                        return pd.to_datetime(val).date()
+                except:
+                    return None
+
+            def safe_to_float(val, default=0):
+                if pd.isna(val) or not val:
+                    return default
+                try:
+                    return float(val)
+                except:
+                    return default
+
             # Load all existing PO numbers for this date once (much faster than per-row queries)
             existing_pos = set(
                 row[0] for row in InventorySnapshot.query.filter_by(
@@ -200,28 +223,6 @@ def ingest_inventory_file(file_path, app):
                             existing_record.actual_delivery_date = safe_to_date(row.get('Expected Delivery Date & Actual Delivery Date to DWM Warehouse'))
                             db.session.commit()
                     continue
-
-                def safe_to_date(val):
-                    if pd.isna(val) or not val:
-                        return None
-                    try:
-                        # Try multiple date formats
-                        # First try the DD-Mon-YY format (e.g., "10-Apr-26")
-                        try:
-                            return pd.to_datetime(val, format='%d-%b-%y').date()
-                        except:
-                            # Fall back to pandas auto-detection
-                            return pd.to_datetime(val).date()
-                    except:
-                        return None
-
-                def safe_to_float(val, default=0):
-                    if pd.isna(val) or not val:
-                        return default
-                    try:
-                        return float(val)
-                    except:
-                        return default
 
                 # Get currency column if it exists
                 currency_str = row.get('Currency', 'EUR')
