@@ -191,10 +191,11 @@ def ingest_inventory_file(file_path, app):
                 return default
 
         with app.app_context():
-            # Clear existing data for this date
-            print(f"Clearing data for {report_date}...")
-            InventorySnapshot.query.filter_by(report_date=report_date).delete()
+            # Clear existing data for this date AND all older dates
+            print(f"Clearing data for {report_date} and older...")
+            InventorySnapshot.query.delete()  # Clear ALL data
             db.session.commit()
+            print(f"Cleared all inventory data")
 
             # Ingest new data - skip duplicate POs
             row_count = 0
