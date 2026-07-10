@@ -214,6 +214,11 @@ def get_part_pos(supplier, part_number):
             continue
         seen.add(po.po_number)
 
+        # Skip POs with no open quantities (all called off)
+        total_qty = (po.qty_on_order or 0) + (po.qty_in_transit or 0) + (po.qty_on_hand or 0)
+        if total_qty == 0:
+            continue
+
         status = 'On Hand'
         if po.qty_on_hand and po.qty_on_hand > 0:
             status = 'On Hand'
