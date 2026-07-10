@@ -352,7 +352,26 @@ def fix_dates():
     try:
         import pandas as pd
         from openpyxl import load_workbook
-        from ingest import extract_report_date_from_filename
+        import re
+        from datetime import datetime
+
+        def extract_date_from_filename(filename):
+            # Try DD-Mon-YYYY format (e.g., "3 Jul 2026")
+            match = re.search(r'(\d{1,2})\s+(\w+)\s+(\d{4})', filename)
+            if match:
+                try:
+                    date_str = f"{match.group(1)}-{match.group(2)}-{match.group(3)}"
+                    return datetime.strptime(date_str, '%d-%b-%Y').date()
+                except:
+                    pass
+            # Try YYYY-MM-DD format
+            match = re.search(r'(\d{4})-(\d{2})-(\d{2})', filename)
+            if match:
+                try:
+                    return datetime.strptime(match.group(0), '%Y-%m-%d').date()
+                except:
+                    pass
+            return None
 
         # Find the Excel file matching the most recent report date in database
         latest_date = db.session.query(func.max(InventorySnapshot.report_date)).scalar()
@@ -362,7 +381,7 @@ def fix_dates():
         latest_file = None
         if latest_date:
             for f in Path(data_folder).glob('*.xlsx'):
-                if extract_report_date_from_filename(f.name) == latest_date:
+                if extract_date_from_filename(f.name) == latest_date:
                     latest_file = f
                     break
 
