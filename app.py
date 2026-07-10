@@ -271,6 +271,21 @@ def get_supplier_trends(supplier):
 
     return jsonify(data)
 
+@app.route('/api/debug/po/<po_number>', methods=['GET'])
+def debug_po(po_number):
+    """Debug endpoint - show raw data for a PO"""
+    po = InventorySnapshot.query.filter_by(po_number=po_number).first()
+    if not po:
+        return jsonify({'error': f'PO {po_number} not found'}), 404
+
+    return jsonify({
+        'po_number': po.po_number,
+        'report_date': str(po.report_date),
+        'confirmed_supplier_ship_date': str(po.confirmed_supplier_ship_date),
+        'expected_delivery_date': str(po.expected_delivery_date),
+        'actual_delivery_date': str(po.actual_delivery_date),
+    })
+
 @app.route('/api/delivery-variance', methods=['GET'])
 def get_delivery_variance():
     """Get delivery variance summary by supplier"""
