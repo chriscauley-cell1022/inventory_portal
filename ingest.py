@@ -196,12 +196,11 @@ def ingest_inventory_file(file_path, app):
                 except:
                     return default
 
-            # Load all existing PO numbers for this date once (much faster than per-row queries)
-            existing_pos = set(
-                row[0] for row in InventorySnapshot.query.filter_by(
-                    report_date=report_date
-                ).with_entities(InventorySnapshot.po_number).all()
-            )
+            # Clear existing data for this date
+            print(f"Clearing existing data for {report_date}...")
+            InventorySnapshot.query.filter_by(report_date=report_date).delete()
+            db.session.commit()
+            print(f"Cleared existing data for {report_date}")
 
             for idx, row in df.iterrows():
                 po_val = row.get('Purchase Order', '')
@@ -209,22 +208,6 @@ def ingest_inventory_file(file_path, app):
                     continue
                 po_number = str(po_val).strip()
                 if not po_number or po_number == 'nan' or po_number == 'NaT':
-                    continue
-
-                # Check if already exists using the set (O(1) lookup)
-                if po_number in existing_pos:
-                    # Update ALL existing records with this PO number (across all dates) with corrected dates
-                    existing_records = InventorySnapshot.query.filter_by(po_number=po_number).all()
-
-                    po_ship_date = safe_to_date(row.get('PO Ship Date'))
-                    confirmed_ship_date = safe_to_date(row.get('Confirmed Supplier Ship Date'))
-
-                    for existing_record in existing_records:
-                        existing_record.confirmed_supplier_ship_date = po_ship_date
-                        existing_record.expected_delivery_date = confirmed_ship_date
-                        if not existing_record.actual_delivery_date:
-                            existing_record.actual_delivery_date = safe_to_date(row.get('Expected Delivery Date & Actual Delivery Date to DWM Warehouse'))
-                        db.session.commit()
                     continue
 
                 # Get currency column if it exists
@@ -274,7 +257,14 @@ def ingest_inventory_file(file_path, app):
 
                 db.session.add(snapshot)
 
+                # Batch commit every 100 rows to avoid memory issues
+                if (idx + 1) % 100 == 0:
+                    db.session.commit()
+                    print(f"Committed batch at row {idx + 1}")
+
+            # Final commit for remaining rows
             db.session.commit()
+            print(f"Final commit completed for {idx + 1} rows")
 
             # Recalculate metrics for this date
             calculate_metrics(report_date, app)
