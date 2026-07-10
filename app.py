@@ -200,17 +200,20 @@ def get_part_pos(supplier, part_number):
     if not latest_date:
         return jsonify([])
 
-    # Get distinct POs by selecting first occurrence of each PO number
-    pos = db.session.query(InventorySnapshot).distinct(
-        InventorySnapshot.po_number
-    ).filter(
+    pos = db.session.query(InventorySnapshot).filter(
         InventorySnapshot.report_date == latest_date,
         InventorySnapshot.supplier == supplier,
         InventorySnapshot.part_number == part_number
     ).order_by(InventorySnapshot.po_number).all()
 
+    # Deduplicate: keep only first occurrence of each PO number
+    seen = set()
     data = []
     for po in pos:
+        if po.po_number in seen:
+            continue
+        seen.add(po.po_number)
+
         status = 'On Hand'
         if po.qty_on_hand and po.qty_on_hand > 0:
             status = 'On Hand'
