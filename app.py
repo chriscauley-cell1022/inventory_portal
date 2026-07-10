@@ -352,14 +352,27 @@ def fix_dates():
     try:
         import pandas as pd
         from openpyxl import load_workbook
+        from ingest import extract_report_date_from_filename
 
-        # Find the most recent Excel file
+        # Find the Excel file matching the most recent report date in database
+        latest_date = db.session.query(func.max(InventorySnapshot.report_date)).scalar()
         data_folder = os.environ.get('DATA_FOLDER', os.path.join(basedir, 'OrebroSRD'))
-        excel_files = sorted(Path(data_folder).glob('*.xlsx'))
-        if not excel_files:
-            return jsonify({'status': 'error', 'message': 'No Excel files found'}), 404
 
-        latest_file = excel_files[-1]
+        # Find file matching this date
+        latest_file = None
+        if latest_date:
+            for f in Path(data_folder).glob('*.xlsx'):
+                if extract_report_date_from_filename(f.name) == latest_date:
+                    latest_file = f
+                    break
+
+        # If no match found, use most recent file
+        if not latest_file:
+            excel_files = sorted(Path(data_folder).glob('*.xlsx'))
+            if not excel_files:
+                return jsonify({'status': 'error', 'message': 'No Excel files found'}), 404
+            latest_file = excel_files[-1]
+
         print(f"Reading dates from: {latest_file.name}")
 
         # Parse the file
