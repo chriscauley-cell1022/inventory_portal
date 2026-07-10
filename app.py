@@ -366,16 +366,17 @@ def fix_dates():
         wb = load_workbook(latest_file, data_only=True)
         sheet = wb['Inventory Report']
 
-        # Find header row
+        # Find header row - look for "Purchase Order" column
         header_row = None
         for row_idx in range(1, 50):
             row = [cell.value for cell in sheet[row_idx]]
-            if any(v == 'Purchase Order' for v in row):
+            # Check for "Purchase Order" or variations
+            if any(v and 'Purchase Order' in str(v) for v in row):
                 header_row = row_idx
                 break
 
         if not header_row:
-            return jsonify({'status': 'error', 'message': 'Could not find header row'}), 400
+            return jsonify({'status': 'error', 'message': 'Could not find header row', 'checked_rows': 50}), 400
 
         # Read with correct header
         df = pd.read_excel(latest_file, sheet_name='Inventory Report', header=header_row-1)
