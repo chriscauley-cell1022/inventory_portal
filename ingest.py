@@ -414,13 +414,7 @@ def calculate_metrics(report_date, app):
 
             db.session.add(supplier_metric)
 
-            db.session.commit()
-            return True
-        except Exception as e:
-            print(f"ERROR in ingest_inventory_file: {e}")
-            import traceback
-            traceback.print_exc()
-            return False
+        db.session.commit()
 
 def ingest_all_files(app, folder_path, clear_latest=False):
     """Ingest all inventory files from folder or Google Drive (only new files since last ingest)"""
