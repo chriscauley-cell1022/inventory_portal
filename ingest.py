@@ -452,18 +452,26 @@ def calculate_metrics(report_date, app):
 def ingest_all_files(app, folder_path, clear_latest=False):
     """Ingest all inventory files from folder or Google Drive (only new files since last ingest)"""
     try:
-        # Try to download from Google Drive first
-        from google_drive_integration import download_latest_inventory_file, get_folder_id
-        import tempfile
+        # Try to download from Google Drive first (optional dependency)
+        inventory_files = None
+        try:
+            from google_drive_integration import download_latest_inventory_file, get_folder_id
+            import tempfile
 
-        temp_dir = tempfile.gettempdir()
-        gdrive_file = download_latest_inventory_file(get_folder_id(), temp_dir)
+            temp_dir = tempfile.gettempdir()
+            gdrive_file = download_latest_inventory_file(get_folder_id(), temp_dir)
 
-        if gdrive_file:
-            print(f"Using file from Google Drive: {gdrive_file}")
-            inventory_files = [Path(gdrive_file)]
-        else:
-            print("Google Drive download failed or not configured. Falling back to local folder.")
+            if gdrive_file:
+                print(f"Using file from Google Drive: {gdrive_file}")
+                inventory_files = [Path(gdrive_file)]
+        except ImportError:
+            print("Google Drive dependencies not available. Falling back to local folder.")
+        except Exception as e:
+            print(f"Google Drive download failed: {e}. Falling back to local folder.")
+
+        # Fall back to local folder if Google Drive didn't work
+        if not inventory_files:
+            print("Reading from local folder: " + folder_path)
             inventory_files = list(Path(folder_path).glob('**/*.xlsx'))
             inventory_files = [f for f in inventory_files if 'Inventory Report' in f.name or 'Inventory as of' in f.name]
 
