@@ -196,8 +196,9 @@ def ingest_inventory_file(file_path, app):
             InventorySnapshot.query.filter_by(report_date=report_date).delete()
             db.session.commit()
 
-            # Ingest new data
+            # Ingest new data - skip duplicate POs
             row_count = 0
+            seen_pos = set()
             for idx, row in df.iterrows():
                 po_val = row.get('Purchase Order', '')
                 if pd.isna(po_val) or not po_val:
@@ -205,6 +206,11 @@ def ingest_inventory_file(file_path, app):
                 po_number = str(po_val).strip()
                 if not po_number or po_number == 'nan':
                     continue
+
+                # Skip if we've already added this PO in this ingest
+                if po_number in seen_pos:
+                    continue
+                seen_pos.add(po_number)
 
                 actual_delivery_date = safe_to_date(row.get('Expected Delivery Date & Actual Delivery Date to DWM Warehouse'))
                 final_delivery_date = safe_to_date(row.get('Final Delivery Date'))
