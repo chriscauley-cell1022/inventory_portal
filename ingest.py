@@ -116,6 +116,9 @@ def parse_inventory_file(file_path):
         df = pd.read_excel(file_path, sheet_name='Inventory Report', header=header_row-1)
         df.columns = df.columns.str.strip()
 
+        # Debug: print actual column names
+        print(f"Column names found: {list(df.columns)}")
+
         # Extract report date
         report_date = extract_report_date_from_filename(file_path)
         if not report_date:
