@@ -318,6 +318,14 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
     return Math.round(diffTime / (1000 * 60 * 60 * 24));
   };
 
+  const calculateTotalLeadTime = (confirmedDate: string, warehouseDate: string): number | null => {
+    if (confirmedDate === 'N/A' || warehouseDate === 'N/A') return null;
+    const confirmed = new Date(confirmedDate);
+    const warehouse = new Date(warehouseDate);
+    const diffTime = warehouse.getTime() - confirmed.getTime();
+    return Math.round(diffTime / (1000 * 60 * 60 * 24));
+  };
+
   const getSortedPOs = (): PO[] => {
     const sorted = [...pos];
     sorted.sort((a, b) => {
@@ -356,6 +364,10 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
         case 'wh_receipt_date':
           aVal = a.wh_receipt_date;
           bVal = b.wh_receipt_date;
+          break;
+        case 'total_lead_time':
+          aVal = calculateTotalLeadTime(a.confirmed_del_date, a.wh_receipt_date) || 0;
+          bVal = calculateTotalLeadTime(b.confirmed_del_date, b.wh_receipt_date) || 0;
           break;
         case 'status':
           aVal = (a.status || '').toLowerCase();
@@ -729,6 +741,9 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                       <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '90px' }} onClick={() => handlePoHeaderClick('wh_receipt_date')}>
                         Warehouse<br/>Receipt<br/>Date {poSortColumn === 'wh_receipt_date' && (poSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
+                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '90px' }} onClick={() => handlePoHeaderClick('total_lead_time')}>
+                        Total<br/>Lead Time {poSortColumn === 'total_lead_time' && (poSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
                       <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '70px' }} onClick={() => handlePoHeaderClick('status')}>
                         Status {poSortColumn === 'status' && (poSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
@@ -772,6 +787,13 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                         </td>
                         <td style={{ padding: 10, textAlign: 'center', borderBottom: '1px solid #eee' }}>
                           {po.wh_receipt_date}
+                        </td>
+                        <td style={{ padding: 10, textAlign: 'center', borderBottom: '1px solid #eee' }}>
+                          {(() => {
+                            const days = calculateTotalLeadTime(po.confirmed_del_date, po.wh_receipt_date);
+                            if (days === null) return 'N/A';
+                            return `${days} days`;
+                          })()}
                         </td>
                         <td style={{ padding: 10, textAlign: 'center', borderBottom: '1px solid #eee' }}>
                           {po.status}
