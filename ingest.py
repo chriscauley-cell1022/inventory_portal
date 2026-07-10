@@ -487,11 +487,27 @@ def ingest_all_files(app, folder_path, clear_latest=False):
                 )
 
         ingested_count = 0
+        # Only process the most recent file to update records
+        if inventory_files:
+            # Sort by filename to get most recent
+            latest_file = sorted(inventory_files)[-1]
+            print(f"Processing latest file: {latest_file.name}")
+            if ingest_inventory_file(str(latest_file), app):
+                ingested_count += 1
+
+        # Also process any new files not yet in database
         for file_path in inventory_files:
             report_date = extract_report_date_from_filename(file_path.name)
 
-            # Always process files to ensure records are updated with latest data
-            # (previously skipped already-ingested files, but we need to update them)
+            # Skip if this date is already in database
+            if report_date and report_date in existing_dates and file_path != (sorted(inventory_files)[-1] if inventory_files else None):
+                print(f"Skipping {file_path.name} (already ingested)")
+                continue
+
+            # Don't double-process the latest file
+            if file_path == (sorted(inventory_files)[-1] if inventory_files else None):
+                continue
+
             if ingest_inventory_file(str(file_path), app):
                 ingested_count += 1
 
