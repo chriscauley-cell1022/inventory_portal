@@ -352,48 +352,16 @@ def fix_dates():
     try:
         import pandas as pd
         from openpyxl import load_workbook
-        import re
-        from datetime import datetime
 
-        def extract_date_from_filename(filename):
-            # Try "Month Day, Year" format (e.g., "July 3, 2026")
-            match = re.search(r'(\w+)\s+(\d{1,2}),\s+(\d{4})', filename)
-            if match:
-                try:
-                    date_str = f"{match.group(2)}-{match.group(1)}-{match.group(3)}"
-                    return datetime.strptime(date_str, '%d-%B-%Y').date()
-                except:
-                    pass
-            # Try DD-Mon-YYYY format (e.g., "3 Jul 2026")
-            match = re.search(r'(\d{1,2})\s+(\w+)\s+(\d{4})', filename)
-            if match:
-                try:
-                    date_str = f"{match.group(1)}-{match.group(2)}-{match.group(3)}"
-                    return datetime.strptime(date_str, '%d-%b-%Y').date()
-                except:
-                    pass
-            # Try YYYY-MM-DD format
-            match = re.search(r'(\d{4})-(\d{2})-(\d{2})', filename)
-            if match:
-                try:
-                    return datetime.strptime(match.group(0), '%Y-%m-%d').date()
-                except:
-                    pass
-            return None
-
-        # Find the Excel file matching the most recent report date in database
-        latest_date = db.session.query(func.max(InventorySnapshot.report_date)).scalar()
         data_folder = os.environ.get('DATA_FOLDER', os.path.join(basedir, 'OrebroSRD'))
 
-        # Find file matching this date
+        # Find the file with "as of July 3" or similar in the name, or just use the most recent
         latest_file = None
-        if latest_date:
-            for f in Path(data_folder).glob('*.xlsx'):
-                if extract_date_from_filename(f.name) == latest_date:
-                    latest_file = f
-                    break
+        for f in sorted(Path(data_folder).glob('*.xlsx'), reverse=True):
+            if 'July 3' in f.name or 'as of' in f.name:
+                latest_file = f
+                break
 
-        # If no match found, use most recent file
         if not latest_file:
             excel_files = sorted(Path(data_folder).glob('*.xlsx'))
             if not excel_files:
