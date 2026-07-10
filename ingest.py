@@ -115,8 +115,11 @@ def parse_inventory_file(file_path):
         # Read data starting from header
         df = pd.read_excel(file_path, sheet_name='Inventory Report', header=header_row-1)
         df.columns = df.columns.str.strip()
-        # Also strip whitespace from all cell values
-        df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x, na_action='ignore')
+        # Also strip whitespace from all cell values (use map for newer pandas, applymap for older)
+        try:
+            df = df.map(lambda x: x.strip() if isinstance(x, str) else x, na_action='ignore')
+        except (AttributeError, TypeError):
+            df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x, na_action='ignore')
 
         # Extract report date
         report_date = extract_report_date_from_filename(file_path)
@@ -449,7 +452,7 @@ def ingest_all_files(app, folder_path, clear_latest=False):
         if not inventory_files:
             print("Reading from local folder: " + folder_path)
             inventory_files = list(Path(folder_path).glob('**/*.xlsx'))
-            inventory_files = [f for f in inventory_files if 'Inventory' in f.name]
+            inventory_files = [f for f in inventory_files if 'Inventory' in f.name and not f.name.startswith('~$')]
 
         # Sort by filename (works with YYYY-MM-DD_ prefix format)
         inventory_files = sorted(inventory_files)
