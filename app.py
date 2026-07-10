@@ -271,6 +271,25 @@ def get_supplier_trends(supplier):
 
     return jsonify(data)
 
+@app.route('/api/debug/files', methods=['GET'])
+def debug_files():
+    """Debug endpoint - list files in OrebroSRD folder"""
+    folder_path = os.path.join(basedir, 'OrebroSRD')
+
+    if not os.path.exists(folder_path):
+        return jsonify({'error': f'OrebroSRD folder not found at {folder_path}'}), 404
+
+    try:
+        files = os.listdir(folder_path)
+        xlsx_files = [f for f in files if f.endswith('.xlsx')]
+        return jsonify({
+            'folder': folder_path,
+            'total_files': len(files),
+            'xlsx_files': sorted(xlsx_files),
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/debug/po/<po_number>', methods=['GET'])
 def debug_po(po_number):
     """Debug endpoint - show raw data for a PO"""
