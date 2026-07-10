@@ -163,74 +163,54 @@ def convert_currency(amount, currency_str):
 
 def ingest_inventory_file(file_path, app):
     """Ingest a single inventory file and update database"""
-    df, report_date = parse_inventory_file(file_path)
+    try:
+        df, report_date = parse_inventory_file(file_path)
+        if df is None or report_date is None:
+            print(f"ERROR: Failed to parse {file_path}")
+            return False
 
-    if df is None or report_date is None:
-        print(f"ERROR: Failed to parse {file_path}")
-        return False
+        print(f"Ingesting {file_path} with report_date {report_date}")
 
-    print(f"Ingesting {file_path} with report_date {report_date}")
-
-    with app.app_context():
-        try:
-            # Define date/float conversion functions
-            def safe_to_date(val):
-                if pd.isna(val) or not val:
-                    return None
+        def safe_to_date(val):
+            if pd.isna(val) or not val:
+                return None
+            try:
+                return pd.to_datetime(val, format='%d-%b-%y').date()
+            except:
                 try:
-                    # Try multiple date formats
-                    # First try the DD-Mon-YY format (e.g., "10-Apr-26")
-                    try:
-                        return pd.to_datetime(val, format='%d-%b-%y').date()
-                    except:
-                        # Fall back to pandas auto-detection
-                        return pd.to_datetime(val).date()
+                    return pd.to_datetime(val).date()
                 except:
                     return None
 
-            def safe_to_float(val, default=0):
-                if pd.isna(val) or not val:
-                    return default
-                try:
-                    return float(val)
-                except:
-                    return default
+        def safe_to_float(val, default=0):
+            if pd.isna(val) or not val:
+                return default
+            try:
+                return float(val)
+            except:
+                return default
 
+        with app.app_context():
             # Clear existing data for this date
-            print(f"Clearing existing data for {report_date}...")
+            print(f"Clearing data for {report_date}...")
             InventorySnapshot.query.filter_by(report_date=report_date).delete()
             db.session.commit()
-            print(f"Cleared existing data for {report_date}")
 
+            # Ingest new data
+            row_count = 0
             for idx, row in df.iterrows():
                 po_val = row.get('Purchase Order', '')
                 if pd.isna(po_val) or not po_val:
                     continue
                 po_number = str(po_val).strip()
-                if not po_number or po_number == 'nan' or po_number == 'NaT':
+                if not po_number or po_number == 'nan':
                     continue
 
-                # Get currency column if it exists
-                currency_str = row.get('Currency', 'EUR')
-
-                # Calculate days remaining to expiration
-                final_delivery_date = safe_to_date(row.get('Final Delivery Date'))
-                inventory_age_val = None
-                days_remaining_val = None
-
-                if final_delivery_date:
-                    days_remaining_val = (final_delivery_date - report_date).days
-
-                # Try to get inventory age
-                try:
-                    inv_age = row.get('Inventory Age')
-                    if pd.notna(inv_age):
-                        inventory_age_val = int(inv_age)
-                except:
-                    pass
-
-                # Always populate actual delivery date from source if available
                 actual_delivery_date = safe_to_date(row.get('Expected Delivery Date & Actual Delivery Date to DWM Warehouse'))
+                final_delivery_date = safe_to_date(row.get('Final Delivery Date'))
+                days_remaining = None
+                if final_delivery_date:
+                    days_remaining = (final_delivery_date - report_date).days
 
                 snapshot = InventorySnapshot(
                     report_date=report_date,
@@ -243,10 +223,9 @@ def ingest_inventory_file(file_path, app):
                     expected_delivery_date=safe_to_date(row.get('Confirmed Supplier Ship Date')),
                     actual_delivery_date=actual_delivery_date,
                     final_delivery_date=final_delivery_date,
-                    inventory_age=inventory_age_val,
-                    days_remaining=days_remaining_val,
+                    days_remaining=days_remaining,
                     po_quantity=safe_to_float(row.get('PO Quantity')),
-                    total_po_amount=convert_currency(row.get('Total PO Amount'), currency_str),
+                    total_po_amount=convert_currency(row.get('Total PO Amount'), row.get('Currency', 'EUR')),
                     qty_on_order=safe_to_float(row.get('DWM Qty On Order')),
                     qty_in_transit=safe_to_float(row.get('DWM Qty In Transit')),
                     qty_on_hand=safe_to_float(row.get('DWM Qty On Hand')),
@@ -254,27 +233,24 @@ def ingest_inventory_file(file_path, app):
                     qty_called_off_committed=safe_to_float(row.get('DWM Qty Called Off (Committed)')),
                     currency='EUR',
                 )
-
                 db.session.add(snapshot)
+                row_count += 1
 
-                # Batch commit every 100 rows to avoid memory issues
-                if (idx + 1) % 100 == 0:
+                # Batch commit every 100 rows
+                if row_count % 100 == 0:
                     db.session.commit()
-                    print(f"Committed batch at row {idx + 1}")
+                    print(f"Batch committed: {row_count} rows")
 
-            # Final commit for remaining rows
             db.session.commit()
-            print(f"Final commit completed for {idx + 1} rows")
-
-            # Recalculate metrics for this date
+            print(f"Completed ingest: {row_count} total rows")
             calculate_metrics(report_date, app)
-
             return True
 
-        except Exception as e:
-            db.session.rollback()
-            print(f"Error ingesting data: {e}")
-            return False
+    except Exception as e:
+        print(f"ERROR ingest_inventory_file: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 def calculate_metrics(report_date, app):
     """Calculate aggregated metrics for a given date"""
