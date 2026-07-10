@@ -31,7 +31,7 @@ with app.app_context():
 
 @app.route('/api/health', methods=['GET'])
 def health():
-    return jsonify({'status': 'ok', 'version': '3'})
+    return jsonify({'status': 'ok', 'version': '4'})
 
 @app.route('/api/summary', methods=['GET'])
 def get_summary():
