@@ -329,7 +329,16 @@ def trigger_ingest():
     try:
         success = ingest_all_files(app, folder_path, clear_latest=clear_latest)
         if success:
-            return jsonify({'status': 'success', 'message': 'Data ingestion completed', 'folder': folder_path})
+            # After ingest, populate any missing warehouse dates
+            with app.app_context():
+                updated = db.session.query(InventorySnapshot).filter(
+                    InventorySnapshot.actual_delivery_date == None,
+                    InventorySnapshot.expected_delivery_date != None
+                ).update({
+                    InventorySnapshot.actual_delivery_date: InventorySnapshot.expected_delivery_date
+                })
+                db.session.commit()
+            return jsonify({'status': 'success', 'message': 'Data ingestion completed', 'folder': folder_path, 'warehouse_dates_populated': updated})
         else:
             return jsonify({'status': 'error', 'message': 'Data ingestion failed', 'attempted_folder': folder_path}), 500
     except Exception as e:
