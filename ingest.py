@@ -163,17 +163,16 @@ def convert_currency(amount, currency_str):
 
 def ingest_inventory_file(file_path, app):
     """Ingest a single inventory file and update database"""
-    try:
-        df, report_date = parse_inventory_file(file_path)
+    df, report_date = parse_inventory_file(file_path)
 
-        if df is None or report_date is None:
-            print(f"ERROR: Failed to parse {file_path}")
-            return False
+    if df is None or report_date is None:
+        print(f"ERROR: Failed to parse {file_path}")
+        return False
 
-        print(f"Ingesting {file_path} with report_date {report_date}")
+    print(f"Ingesting {file_path} with report_date {report_date}")
 
-        with app.app_context():
-            try:
+    with app.app_context():
+        try:
             # Define date/float conversion functions
             def safe_to_date(val):
                 if pd.isna(val) or not val:
@@ -449,13 +448,13 @@ def calculate_metrics(report_date, app):
 
             db.session.add(supplier_metric)
 
-        db.session.commit()
-        return True
-    except Exception as e:
-        print(f"ERROR in ingest_inventory_file: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+            db.session.commit()
+            return True
+        except Exception as e:
+            print(f"ERROR in ingest_inventory_file: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
 
 def ingest_all_files(app, folder_path, clear_latest=False):
     """Ingest all inventory files from folder or Google Drive (only new files since last ingest)"""
