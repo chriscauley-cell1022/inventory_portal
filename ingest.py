@@ -473,7 +473,7 @@ def ingest_all_files(app, folder_path, clear_latest=False):
         if not inventory_files:
             print("Reading from local folder: " + folder_path)
             inventory_files = list(Path(folder_path).glob('**/*.xlsx'))
-            inventory_files = [f for f in inventory_files if 'Inventory Report' in f.name or 'Inventory as of' in f.name]
+            inventory_files = [f for f in inventory_files if 'Inventory' in f.name]
 
         # Sort by filename (works with YYYY-MM-DD_ prefix format)
         inventory_files = sorted(inventory_files)
