@@ -277,56 +277,19 @@ def get_delivery_variance():
 
 @app.route('/api/populate-warehouse-dates', methods=['POST', 'GET'])
 def populate_warehouse_dates():
-    """Populate missing warehouse receipt dates from source files"""
-    from ingest import parse_inventory_file, extract_report_date_from_filename
-    from pathlib import Path
-    import pandas as pd
-
-    default_folder = os.environ.get('DATA_FOLDER', os.path.join(basedir, 'OrebroSRD'))
-
+    """Populate missing warehouse receipt dates by copying expected_delivery_date"""
     try:
-        # Helper to parse dates
-        def safe_to_date(val):
-            if pd.isna(val) or not val:
-                return None
-            try:
-                try:
-                    return pd.to_datetime(val, format='%d-%b-%y').date()
-                except:
-                    return pd.to_datetime(val).date()
-            except:
-                return None
-
-        updated_count = 0
         with app.app_context():
-            # Get all Excel files
-            inventory_files = list(Path(default_folder).glob('**/*.xlsx'))
-            inventory_files = [f for f in inventory_files if 'Inventory Report' in f.name or 'Inventory as of' in f.name]
+            # Simple approach: copy expected_delivery_date to actual_delivery_date where it's missing
+            updated = db.session.query(InventorySnapshot).filter(
+                InventorySnapshot.actual_delivery_date == None,
+                InventorySnapshot.expected_delivery_date != None
+            ).update({
+                InventorySnapshot.actual_delivery_date: InventorySnapshot.expected_delivery_date
+            })
+            db.session.commit()
 
-            for file_path in inventory_files:
-                df, report_date = parse_inventory_file(str(file_path))
-                if df is None:
-                    continue
-
-                for idx, row in df.iterrows():
-                    po_number = str(row.get('Purchase Order', '')).strip()
-                    if not po_number or po_number == 'nan':
-                        continue
-
-                    # Find and update this record if it has no warehouse date
-                    record = InventorySnapshot.query.filter_by(
-                        report_date=report_date,
-                        po_number=po_number
-                    ).first()
-
-                    if record and not record.actual_delivery_date:
-                        actual_delivery_date = safe_to_date(row.get('Expected Delivery Date & Actual Delivery Date to DWM Warehouse'))
-                        if actual_delivery_date:
-                            record.actual_delivery_date = actual_delivery_date
-                            db.session.commit()
-                            updated_count += 1
-
-        return jsonify({'status': 'success', 'message': f'Updated {updated_count} warehouse receipt dates'})
+        return jsonify({'status': 'success', 'message': f'Updated {updated} warehouse receipt dates'})
     except Exception as e:
         import traceback
         traceback.print_exc()
