@@ -116,9 +116,6 @@ def parse_inventory_file(file_path):
         df = pd.read_excel(file_path, sheet_name='Inventory Report', header=header_row-1)
         df.columns = df.columns.str.strip()
 
-        # Debug: print actual column names
-        print(f"Column names found: {list(df.columns)}")
-
         # Extract report date
         report_date = extract_report_date_from_filename(file_path)
         if not report_date:
@@ -222,11 +219,8 @@ def ingest_inventory_file(file_path, app):
                     ).first()
 
                     if existing_record:
-                        po_ship = safe_to_date(row.get('PO Ship Date'))
-                        confirmed_ship = safe_to_date(row.get('Confirmed Supplier Ship Date'))
-                        print(f"PO {po_number}: PO Ship Date={row.get('PO Ship Date')} -> {po_ship}, Confirmed Ship Date={row.get('Confirmed Supplier Ship Date')} -> {confirmed_ship}")
-                        existing_record.confirmed_supplier_ship_date = po_ship
-                        existing_record.expected_delivery_date = confirmed_ship
+                        existing_record.confirmed_supplier_ship_date = safe_to_date(row.get('PO Ship Date'))
+                        existing_record.expected_delivery_date = safe_to_date(row.get('Confirmed Supplier Ship Date'))
                         if not existing_record.actual_delivery_date:
                             existing_record.actual_delivery_date = safe_to_date(row.get('Expected Delivery Date & Actual Delivery Date to DWM Warehouse'))
                         db.session.commit()
