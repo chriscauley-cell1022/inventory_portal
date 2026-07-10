@@ -6,6 +6,7 @@ import re
 import shutil
 from openpyxl import load_workbook
 from models import db, InventorySnapshot, MetricSnapshot, SupplierMetric, DeliveryVariance
+from sqlalchemy import func
 
 # Currency conversion rates (as of 2026)
 SEK_TO_EUR = 0.0945  # Approximate conversion rate
@@ -450,7 +451,7 @@ def calculate_metrics(report_date, app):
 
         db.session.commit()
 
-def ingest_all_files(app, folder_path):
+def ingest_all_files(app, folder_path, clear_latest=False):
     """Ingest all inventory files from folder (only new files since last ingest)"""
     try:
         inventory_files = list(Path(folder_path).glob('**/*.xlsx'))
@@ -460,19 +461,33 @@ def ingest_all_files(app, folder_path):
         inventory_files = sorted(inventory_files)
 
         with app.app_context():
-            # Get all dates already in database
-            existing_dates = set(
-                row[0] for row in InventorySnapshot.query.with_entities(
-                    InventorySnapshot.report_date
-                ).distinct().all()
-            )
+            if clear_latest:
+                # Delete records from the most recent date to force re-ingest
+                latest_date = db.session.query(func.max(InventorySnapshot.report_date)).scalar()
+                if latest_date:
+                    print(f"Clearing data for {latest_date} to re-ingest...")
+                    InventorySnapshot.query.filter_by(report_date=latest_date).delete()
+                    MetricSnapshot.query.filter_by(snapshot_date=latest_date).delete()
+                    SupplierMetric.query.filter_by(snapshot_date=latest_date).delete()
+                    DeliveryVariance.query.filter_by(report_date=latest_date).delete()
+                    db.session.commit()
+                    existing_dates = set()
+                else:
+                    existing_dates = set()
+            else:
+                # Get all dates already in database
+                existing_dates = set(
+                    row[0] for row in InventorySnapshot.query.with_entities(
+                        InventorySnapshot.report_date
+                    ).distinct().all()
+                )
 
         ingested_count = 0
         for file_path in inventory_files:
             report_date = extract_report_date_from_filename(file_path.name)
 
-            # Skip if this date is already in database
-            if report_date and report_date in existing_dates:
+            # Skip if this date is already in database (unless we're clearing latest)
+            if not clear_latest and report_date and report_date in existing_dates:
                 print(f"Skipping {file_path.name} (already ingested)")
                 continue
 

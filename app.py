@@ -280,16 +280,18 @@ def trigger_ingest():
     """Manually trigger data ingestion from folder"""
     default_folder = os.environ.get('DATA_FOLDER', os.path.join(basedir, 'OrebroSRD'))
     folder_path = default_folder
+    clear_latest = False
 
     # Allow override via JSON body if provided
     try:
         if request.is_json and request.json:
             folder_path = request.json.get('folder_path', default_folder)
+            clear_latest = request.json.get('clear_latest', False)
     except:
         pass
 
     try:
-        success = ingest_all_files(app, folder_path)
+        success = ingest_all_files(app, folder_path, clear_latest=clear_latest)
         if success:
             return jsonify({'status': 'success', 'message': 'Data ingestion completed', 'folder': folder_path})
         else:
