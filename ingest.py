@@ -222,8 +222,11 @@ def ingest_inventory_file(file_path, app):
                     ).first()
 
                     if existing_record:
-                        existing_record.confirmed_supplier_ship_date = safe_to_date(row.get('PO Ship Date'))
-                        existing_record.expected_delivery_date = safe_to_date(row.get('Confirmed Supplier Ship Date'))
+                        po_ship = safe_to_date(row.get('PO Ship Date'))
+                        confirmed_ship = safe_to_date(row.get('Confirmed Supplier Ship Date'))
+                        print(f"PO {po_number}: PO Ship Date={row.get('PO Ship Date')} -> {po_ship}, Confirmed Ship Date={row.get('Confirmed Supplier Ship Date')} -> {confirmed_ship}")
+                        existing_record.confirmed_supplier_ship_date = po_ship
+                        existing_record.expected_delivery_date = confirmed_ship
                         if not existing_record.actual_delivery_date:
                             existing_record.actual_delivery_date = safe_to_date(row.get('Expected Delivery Date & Actual Delivery Date to DWM Warehouse'))
                         db.session.commit()
