@@ -490,11 +490,8 @@ def ingest_all_files(app, folder_path, clear_latest=False):
         for file_path in inventory_files:
             report_date = extract_report_date_from_filename(file_path.name)
 
-            # Skip if this date is already in database (unless we're clearing latest)
-            if not clear_latest and report_date and report_date in existing_dates:
-                print(f"Skipping {file_path.name} (already ingested)")
-                continue
-
+            # Always process files to ensure records are updated with latest data
+            # (previously skipped already-ingested files, but we need to update them)
             if ingest_inventory_file(str(file_path), app):
                 ingested_count += 1
 
