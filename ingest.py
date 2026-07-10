@@ -219,10 +219,8 @@ def ingest_inventory_file(file_path, app):
                     ).first()
 
                     if existing_record and not existing_record.actual_delivery_date:
-                        qty_on_hand = safe_to_float(row.get('DWM Qty On Hand', 0))
-                        if qty_on_hand > 0:
-                            existing_record.actual_delivery_date = safe_to_date(row.get('Expected Delivery Date & Actual Delivery Date to DWM Warehouse'))
-                            db.session.commit()
+                        existing_record.actual_delivery_date = safe_to_date(row.get('Expected Delivery Date & Actual Delivery Date to DWM Warehouse'))
+                        db.session.commit()
                     continue
 
                 # Get currency column if it exists
