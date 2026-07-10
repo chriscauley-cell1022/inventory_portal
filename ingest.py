@@ -115,6 +115,8 @@ def parse_inventory_file(file_path):
         # Read data starting from header
         df = pd.read_excel(file_path, sheet_name='Inventory Report', header=header_row-1)
         df.columns = df.columns.str.strip()
+        # Also strip whitespace from all cell values
+        df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x, na_action='ignore')
 
         # Extract report date
         report_date = extract_report_date_from_filename(file_path)
