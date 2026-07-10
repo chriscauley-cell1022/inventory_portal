@@ -190,6 +190,23 @@ def ingest_inventory_file(file_path, app):
             except:
                 return default
 
+        # Normalize column names for flexible matching
+        def find_column(df, *keywords):
+            """Find a column by partial keyword matching (case-insensitive)"""
+            for col in df.columns:
+                col_lower = col.lower().strip()
+                if all(kw.lower() in col_lower for kw in keywords):
+                    return col
+            return None
+
+        # Find column names using flexible matching
+        col_po = find_column(df, 'Purchase Order') or 'Purchase Order'
+        col_po_ship = find_column(df, 'PO', 'Ship') or 'PO Ship Date'
+        col_confirmed_ship = find_column(df, 'Confirmed', 'Ship') or 'Confirmed Supplier Ship Date'
+        col_warehouse_delivery = find_column(df, 'Expected', 'Delivery', 'Warehouse') or 'Expected Delivery Date & Actual Delivery Date to DWM Warehouse'
+
+        print(f"Using columns: PO={col_po}, POShip={col_po_ship}, ConfirmedShip={col_confirmed_ship}, Warehouse={col_warehouse_delivery}")
+
         with app.app_context():
             # Clear existing data for this date AND all older dates
             print(f"Clearing data for {report_date} and older...")
@@ -201,7 +218,7 @@ def ingest_inventory_file(file_path, app):
             row_count = 0
             seen_pos = set()
             for idx, row in df.iterrows():
-                po_val = row.get('Purchase Order', '')
+                po_val = row.get(col_po, '')
                 if pd.isna(po_val) or not po_val:
                     continue
                 po_number = str(po_val).strip()
@@ -213,7 +230,7 @@ def ingest_inventory_file(file_path, app):
                     continue
                 seen_pos.add(po_number)
 
-                actual_delivery_date = safe_to_date(row.get('Expected Delivery Date & Actual Delivery Date to DWM Warehouse'))
+                actual_delivery_date = safe_to_date(row.get(col_warehouse_delivery))
                 final_delivery_date = safe_to_date(row.get('Final Delivery Date'))
                 days_remaining = None
                 if final_delivery_date:
@@ -222,12 +239,12 @@ def ingest_inventory_file(file_path, app):
                 snapshot = InventorySnapshot(
                     report_date=report_date,
                     po_number=po_number,
-                    dwm_order_date=safe_to_date(row.get('DWM Order Date')),
-                    supplier=str(row.get('Supplier', '')).strip(),
-                    part_number=str(row.get('Part No.', '')).strip() if pd.notna(row.get('Part No.')) else None,
-                    part_description=str(row.get('Part Description', '')).strip() if pd.notna(row.get('Part Description')) else None,
-                    confirmed_supplier_ship_date=safe_to_date(row.get('PO Ship Date')),
-                    expected_delivery_date=safe_to_date(row.get('Confirmed Supplier Ship Date')),
+                    dwm_order_date=safe_to_date(row.get(find_column(df, 'DWM', 'Order') or 'DWM Order Date')),
+                    supplier=str(row.get(find_column(df, 'Supplier') or 'Supplier', '')).strip(),
+                    part_number=str(row.get(find_column(df, 'Part', 'No') or 'Part No.', '')).strip() if pd.notna(row.get(find_column(df, 'Part', 'No') or 'Part No.')) else None,
+                    part_description=str(row.get(find_column(df, 'Part', 'Description') or 'Part Description', '')).strip() if pd.notna(row.get(find_column(df, 'Part', 'Description') or 'Part Description')) else None,
+                    confirmed_supplier_ship_date=safe_to_date(row.get(col_po_ship)),
+                    expected_delivery_date=safe_to_date(row.get(col_confirmed_ship)),
                     actual_delivery_date=actual_delivery_date,
                     final_delivery_date=final_delivery_date,
                     days_remaining=days_remaining,
