@@ -206,32 +206,34 @@ def get_part_pos(supplier, part_number):
         InventorySnapshot.part_number == part_number
     ).order_by(InventorySnapshot.po_number).all()
 
-    data = []
+    # Deduplicate by PO number - keep only first occurrence
+    seen_pos = {}
     for po in pos:
-        status = 'On Hand'
-        if po.qty_on_hand and po.qty_on_hand > 0:
+        if po.po_number not in seen_pos:
             status = 'On Hand'
-        elif po.qty_in_transit and po.qty_in_transit > 0:
-            status = 'In Transit'
-        elif po.qty_on_order and po.qty_on_order > 0:
-            status = 'On Order'
+            if po.qty_on_hand and po.qty_on_hand > 0:
+                status = 'On Hand'
+            elif po.qty_in_transit and po.qty_in_transit > 0:
+                status = 'In Transit'
+            elif po.qty_on_order and po.qty_on_order > 0:
+                status = 'On Order'
 
-        data.append({
-            'po_number': po.po_number or 'N/A',
-            'po_date': str(po.dwm_order_date) if po.dwm_order_date else 'N/A',
-            'part_number': po.part_number or 'N/A',
-            'order_qty': po.po_quantity or 0,
-            'total_amount': round(po.total_po_amount or 0, 2),
-            'requested_del_date': str(po.confirmed_supplier_ship_date) if po.confirmed_supplier_ship_date else 'N/A',
-            'confirmed_del_date': str(po.expected_delivery_date) if po.expected_delivery_date else 'N/A',
-            'wh_receipt_date': str(po.actual_delivery_date) if po.actual_delivery_date else 'N/A',
-            'status': status,
-            'qty_on_order': po.qty_on_order or 0,
-            'qty_in_transit': po.qty_in_transit or 0,
-            'qty_on_hand': po.qty_on_hand or 0,
-        })
+            seen_pos[po.po_number] = {
+                'po_number': po.po_number or 'N/A',
+                'po_date': str(po.dwm_order_date) if po.dwm_order_date else 'N/A',
+                'part_number': po.part_number or 'N/A',
+                'order_qty': po.po_quantity or 0,
+                'total_amount': round(po.total_po_amount or 0, 2),
+                'requested_del_date': str(po.confirmed_supplier_ship_date) if po.confirmed_supplier_ship_date else 'N/A',
+                'confirmed_del_date': str(po.expected_delivery_date) if po.expected_delivery_date else 'N/A',
+                'wh_receipt_date': str(po.actual_delivery_date) if po.actual_delivery_date else 'N/A',
+                'status': status,
+                'qty_on_order': po.qty_on_order or 0,
+                'qty_in_transit': po.qty_in_transit or 0,
+                'qty_on_hand': po.qty_on_hand or 0,
+            }
 
-    return jsonify(data)
+    return jsonify(list(seen_pos.values()))
 
 @app.route('/api/suppliers/<supplier>/trends', methods=['GET'])
 def get_supplier_trends(supplier):
