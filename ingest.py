@@ -194,7 +194,13 @@ def ingest_inventory_file(file_path, app):
                     if pd.isna(val) or not val:
                         return None
                     try:
-                        return pd.to_datetime(val).date()
+                        # Try multiple date formats
+                        # First try the DD-Mon-YY format (e.g., "10-Apr-26")
+                        try:
+                            return pd.to_datetime(val, format='%d-%b-%y').date()
+                        except:
+                            # Fall back to pandas auto-detection
+                            return pd.to_datetime(val).date()
                     except:
                         return None
 
