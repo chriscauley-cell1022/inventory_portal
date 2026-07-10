@@ -356,6 +356,14 @@ def fix_dates():
         from datetime import datetime
 
         def extract_date_from_filename(filename):
+            # Try "Month Day, Year" format (e.g., "July 3, 2026")
+            match = re.search(r'(\w+)\s+(\d{1,2}),\s+(\d{4})', filename)
+            if match:
+                try:
+                    date_str = f"{match.group(2)}-{match.group(1)}-{match.group(3)}"
+                    return datetime.strptime(date_str, '%d-%B-%Y').date()
+                except:
+                    pass
             # Try DD-Mon-YYYY format (e.g., "3 Jul 2026")
             match = re.search(r'(\d{1,2})\s+(\w+)\s+(\d{4})', filename)
             if match:
