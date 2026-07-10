@@ -318,12 +318,25 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
     return Math.round(diffTime / (1000 * 60 * 60 * 24));
   };
 
-  const calculateTotalLeadTime = (confirmedDate: string, warehouseDate: string): number | null => {
+  const calculateManufactureLeadTime = (poDate: string, confirmedDate: string): number | null => {
+    if (poDate === 'N/A' || confirmedDate === 'N/A') return null;
+    const po = new Date(poDate);
+    const confirmed = new Date(confirmedDate);
+    const diffTime = confirmed.getTime() - po.getTime();
+    return Math.round(diffTime / (1000 * 60 * 60 * 24));
+  };
+
+  const calculateTransitLeadTime = (confirmedDate: string, warehouseDate: string): number | null => {
     if (confirmedDate === 'N/A' || warehouseDate === 'N/A') return null;
     const confirmed = new Date(confirmedDate);
     const warehouse = new Date(warehouseDate);
     const diffTime = warehouse.getTime() - confirmed.getTime();
     return Math.round(diffTime / (1000 * 60 * 60 * 24));
+  };
+
+  const calculateTotalLeadTime = (manufacturingDays: number | null, transitDays: number | null): number | null => {
+    if (manufacturingDays === null || transitDays === null) return null;
+    return manufacturingDays + transitDays;
   };
 
   const getSortedPOs = (): PO[] => {
@@ -365,9 +378,21 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
           aVal = a.wh_receipt_date;
           bVal = b.wh_receipt_date;
           break;
+        case 'manufacture_lead_time':
+          aVal = calculateManufactureLeadTime(a.po_date, a.confirmed_del_date) || 0;
+          bVal = calculateManufactureLeadTime(b.po_date, b.confirmed_del_date) || 0;
+          break;
+        case 'transit_lead_time':
+          aVal = calculateTransitLeadTime(a.confirmed_del_date, a.wh_receipt_date) || 0;
+          bVal = calculateTransitLeadTime(b.confirmed_del_date, b.wh_receipt_date) || 0;
+          break;
         case 'total_lead_time':
-          aVal = calculateTotalLeadTime(a.confirmed_del_date, a.wh_receipt_date) || 0;
-          bVal = calculateTotalLeadTime(b.confirmed_del_date, b.wh_receipt_date) || 0;
+          const aMfg = calculateManufactureLeadTime(a.po_date, a.confirmed_del_date) || 0;
+          const aTransit = calculateTransitLeadTime(a.confirmed_del_date, a.wh_receipt_date) || 0;
+          const bMfg = calculateManufactureLeadTime(b.po_date, b.confirmed_del_date) || 0;
+          const bTransit = calculateTransitLeadTime(b.confirmed_del_date, b.wh_receipt_date) || 0;
+          aVal = aMfg + aTransit;
+          bVal = bMfg + bTransit;
           break;
         case 'status':
           aVal = (a.status || '').toLowerCase();
@@ -741,6 +766,12 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                       <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '90px' }} onClick={() => handlePoHeaderClick('wh_receipt_date')}>
                         Warehouse<br/>Receipt<br/>Date {poSortColumn === 'wh_receipt_date' && (poSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
+                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '90px' }} onClick={() => handlePoHeaderClick('manufacture_lead_time')}>
+                        Manufacture<br/>Lead Time {poSortColumn === 'manufacture_lead_time' && (poSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '90px' }} onClick={() => handlePoHeaderClick('transit_lead_time')}>
+                        Transit<br/>Lead Time {poSortColumn === 'transit_lead_time' && (poSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
                       <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '90px' }} onClick={() => handlePoHeaderClick('total_lead_time')}>
                         Total<br/>Lead Time {poSortColumn === 'total_lead_time' && (poSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
@@ -790,9 +821,24 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                         </td>
                         <td style={{ padding: 10, textAlign: 'center', borderBottom: '1px solid #eee' }}>
                           {(() => {
-                            const days = calculateTotalLeadTime(po.confirmed_del_date, po.wh_receipt_date);
+                            const days = calculateManufactureLeadTime(po.po_date, po.confirmed_del_date);
                             if (days === null) return 'N/A';
                             return `${days} days`;
+                          })()}
+                        </td>
+                        <td style={{ padding: 10, textAlign: 'center', borderBottom: '1px solid #eee' }}>
+                          {(() => {
+                            const days = calculateTransitLeadTime(po.confirmed_del_date, po.wh_receipt_date);
+                            if (days === null) return 'N/A';
+                            return `${days} days`;
+                          })()}
+                        </td>
+                        <td style={{ padding: 10, textAlign: 'center', borderBottom: '1px solid #eee' }}>
+                          {(() => {
+                            const mfg = calculateManufactureLeadTime(po.po_date, po.confirmed_del_date);
+                            const transit = calculateTransitLeadTime(po.confirmed_del_date, po.wh_receipt_date);
+                            if (mfg === null || transit === null) return 'N/A';
+                            return `${mfg + transit} days`;
                           })()}
                         </td>
                         <td style={{ padding: 10, textAlign: 'center', borderBottom: '1px solid #eee' }}>
