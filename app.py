@@ -227,15 +227,20 @@ def get_part_pos(supplier, part_number):
         elif po.qty_on_order and po.qty_on_order > 0:
             status = 'On Order'
 
+        def format_date(date_obj):
+            if not date_obj:
+                return 'N/A'
+            return date_obj.strftime('%d-%b-%y')
+
         data.append({
             'po_number': po.po_number or 'N/A',
-            'po_date': str(po.dwm_order_date) if po.dwm_order_date else 'N/A',
+            'po_date': format_date(po.dwm_order_date),
             'part_number': po.part_number or 'N/A',
             'order_qty': po.po_quantity or 0,
             'total_amount': round(po.total_po_amount or 0, 2),
-            'requested_del_date': str(po.confirmed_supplier_ship_date) if po.confirmed_supplier_ship_date else 'N/A',
-            'confirmed_del_date': str(po.expected_delivery_date) if po.expected_delivery_date else 'N/A',
-            'wh_receipt_date': str(po.actual_delivery_date) if po.actual_delivery_date else 'N/A',
+            'requested_del_date': format_date(po.confirmed_supplier_ship_date),
+            'confirmed_del_date': format_date(po.expected_delivery_date),
+            'wh_receipt_date': format_date(po.actual_delivery_date),
             'status': status,
             'qty_on_order': po.qty_on_order or 0,
             'qty_in_transit': po.qty_in_transit or 0,
