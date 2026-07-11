@@ -683,20 +683,24 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', border: '1px solid #ddd', borderRadius: 8, padding: 20, marginBottom: 20 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <h2 style={{ marginTop: 0, marginBottom: 0 }}>Supplier Analysis</h2>
+        <h2 style={{ marginTop: 0, marginBottom: 0, flex: 1, textAlign: 'center' }}>Supplier Analysis</h2>
         <div style={{ display: 'flex', gap: 10 }}>
           <label
             style={{
-              padding: '8px 16px',
+              padding: '6px 12px',
               backgroundColor: '#2196f3',
               color: 'white',
               border: 'none',
               borderRadius: 4,
               cursor: uploadingBaseline ? 'not-allowed' : 'pointer',
               opacity: uploadingBaseline ? 0.6 : 1,
+              fontSize: '14px',
+              fontWeight: 'normal',
+              whiteSpace: 'normal',
+              lineHeight: '1.2',
             }}
           >
-            {uploadingBaseline ? 'Uploading...' : 'Upload Baseline LT'}
+            {uploadingBaseline ? 'Uploading...' : 'Upload LT Ref Data'}
             <input
               type="file"
               accept=".xlsx,.xls"
