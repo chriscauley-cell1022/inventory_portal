@@ -378,13 +378,20 @@ def calculate_metrics(report_date, app):
         for supplier in suppliers:
             supplier_snapshots = [s for s in snapshots if s.supplier == supplier]
 
-            supplier_spend = sum(s.total_po_amount or 0 for s in supplier_snapshots)
+            supplier_total_po_spend = sum(s.total_po_amount or 0 for s in supplier_snapshots)
             supplier_qty = sum(s.po_quantity or 0 for s in supplier_snapshots)
             supplier_qty_on_order = sum(s.qty_on_order or 0 for s in supplier_snapshots)
             supplier_qty_in_transit = sum(s.qty_in_transit or 0 for s in supplier_snapshots)
             supplier_qty_on_hand = sum(s.qty_on_hand or 0 for s in supplier_snapshots)
-            # Don't include called-off inventory
-            supplier_qty_called_off = 0
+
+            # Calculate open spend (only on order, in transit, on hand - exclude called-off)
+            supplier_open_qty = supplier_qty_on_order + supplier_qty_in_transit + supplier_qty_on_hand
+            if supplier_qty > 0:
+                supplier_spend = (supplier_open_qty / supplier_qty) * supplier_total_po_spend
+            else:
+                supplier_spend = 0
+
+            supplier_qty_called_off = sum(s.qty_called_off_delivered or 0 for s in supplier_snapshots) + sum(s.qty_called_off_committed or 0 for s in supplier_snapshots)
 
             # Calculate average delivery variance
             variances = [
@@ -400,8 +407,16 @@ def calculate_metrics(report_date, app):
             wow_qty = None
 
             if prev_supplier_snapshots:
-                prev_supplier_spend = sum(s.total_po_amount or 0 for s in prev_supplier_snapshots)
+                # Calculate previous week's open spend (same logic as current week)
+                prev_supplier_total_po_spend = sum(s.total_po_amount or 0 for s in prev_supplier_snapshots)
                 prev_supplier_qty = sum(s.po_quantity or 0 for s in prev_supplier_snapshots)
+                prev_supplier_open_qty = (sum(s.qty_on_order or 0 for s in prev_supplier_snapshots) +
+                                         sum(s.qty_in_transit or 0 for s in prev_supplier_snapshots) +
+                                         sum(s.qty_on_hand or 0 for s in prev_supplier_snapshots))
+                if prev_supplier_qty > 0:
+                    prev_supplier_spend = (prev_supplier_open_qty / prev_supplier_qty) * prev_supplier_total_po_spend
+                else:
+                    prev_supplier_spend = 0
 
                 wow_spend = supplier_spend - prev_supplier_spend
                 wow_qty = supplier_qty - prev_supplier_qty
