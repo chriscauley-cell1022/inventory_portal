@@ -480,15 +480,17 @@ def ingest_all_files(app, folder_path, clear_latest=False):
                 )
 
         ingested_count = 0
-        # Process only the most recent file (alphabetically, since files are named YYYY-MM-DD_...)
+        # Process all files to build historical metrics for charts
         if inventory_files:
-            print(f"Found {len(inventory_files)} inventory files")
-            for f in sorted(inventory_files)[-5:]:  # Show last 5 files
+            sorted_files = sorted(inventory_files)
+            print(f"Found {len(sorted_files)} inventory files")
+            for f in sorted_files[-5:]:  # Show last 5 files
                 print(f"  - {f.name}")
-            latest_file = sorted(inventory_files)[-1]
-            print(f"Processing latest file: {latest_file.name}")
-            if ingest_inventory_file(str(latest_file), app):
-                ingested_count += 1
+            print(f"Processing all {len(sorted_files)} files to build historical data...")
+            for file_path in sorted_files:
+                if ingest_inventory_file(str(file_path), app):
+                    ingested_count += 1
+                    print(f"  ✓ Ingested {file_path.name}")
         else:
             print("ERROR: No inventory files found!")
 
