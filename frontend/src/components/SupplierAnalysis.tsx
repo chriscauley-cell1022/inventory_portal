@@ -175,7 +175,7 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
   const [loadingPOs, setLoadingPOs] = useState(false);
   const [poSortColumn, setPoSortColumn] = useState<string>('po_number');
   const [poSortDirection, setPoSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [baselineData, setBaselineData] = useState<{[key: string]: {total_lead_time_days: number | null}}({});
+  const [baselineData, setBaselineData] = useState<{[key: string]: {total_lead_time_days: number | null}}>({});
   const [uploadingBaseline, setUploadingBaseline] = useState(false);
 
   const handleHeaderClick = (column: string) => {
