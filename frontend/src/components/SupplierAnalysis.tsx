@@ -624,7 +624,7 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
       'Manufacture Lead Time',
       'Transit Lead Time',
       'Total Lead Time',
-      'LT Compliance',
+      'LT Variance',
       'Status'
     ];
 

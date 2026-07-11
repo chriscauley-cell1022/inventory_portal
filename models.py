@@ -106,3 +106,10 @@ class BaselineLeadTime(db.Model):
     __table_args__ = (
         db.UniqueConstraint('supplier', 'part_number', name='uq_baseline_supplier_part'),
     )
+
+class SupplierMapping(db.Model):
+    __tablename__ = 'supplier_mapping'
+
+    id = db.Column(db.Integer, primary_key=True)
+    baseline_supplier_name = db.Column(db.String(255), nullable=False, unique=True, index=True)
+    inventory_supplier_name = db.Column(db.String(255), nullable=False, index=True)

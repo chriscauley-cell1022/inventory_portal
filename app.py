@@ -469,10 +469,14 @@ def upload_baseline_lt():
 @app.route('/api/baseline-lt/<supplier>/<part_number>', methods=['GET'])
 def get_baseline_lt(supplier, part_number):
     """Get baseline lead time for a supplier and part number"""
-    from models import BaselineLeadTime
+    from models import BaselineLeadTime, SupplierMapping
+
+    # Try to find mapping from inventory supplier name to baseline supplier name
+    mapping = SupplierMapping.query.filter_by(inventory_supplier_name=supplier).first()
+    baseline_supplier = mapping.baseline_supplier_name if mapping else supplier
 
     baseline = BaselineLeadTime.query.filter_by(
-        supplier=supplier,
+        supplier=baseline_supplier,
         part_number=part_number
     ).first()
 
