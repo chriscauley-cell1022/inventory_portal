@@ -445,7 +445,7 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
 
     // Prepare CSV rows
     const totalSpend = suppliers.reduce((sum, s) => sum + (s.total_po_spend || 0), 0);
-    const rows = getSortedSuppliers().map(s => [
+    const rows = getSortedSuppliers(suppliers, sortColumn, sortDirection).map(s => [
       `"${s.supplier}"`,
       s.total_po_spend,
       totalSpend > 0 ? ((s.total_po_spend || 0) / totalSpend * 100).toFixed(1) : '0.0',
