@@ -422,6 +422,51 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
     wowLabel: `${s.wow_spend_pct_change ? (s.wow_spend_pct_change > 0 ? '+' : '') + s.wow_spend_pct_change.toFixed(1) + '%' : 'N/A'}`
   }));
 
+  const downloadPartsAsCSV = () => {
+    if (!selectedSupplier || parts.length === 0) return;
+
+    // Prepare CSV header
+    const headers = [
+      'Part Number',
+      'Part Description',
+      'PO Count',
+      'Total Amount',
+      '% Spend'
+    ];
+
+    // Prepare CSV rows
+    const totalSpend = parts.reduce((sum, part) => sum + (part.total_amount || 0), 0);
+    const rows = parts.map(part => [
+      `"${part.part_number}"`,
+      `"${part.part_description}"`,
+      part.po_count,
+      part.total_amount,
+      totalSpend > 0 ? ((part.total_amount || 0) / totalSpend * 100).toFixed(1) : '0.0'
+    ]);
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+
+    const sanitizedSupplier = selectedSupplier.supplier.replace(/\s+/g, '-');
+    const filename = `${sanitizedSupplier}_PartNumbers.csv`;
+
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const downloadPOsAsCSV = () => {
     if (!selectedSupplier || !selectedPart || pos.length === 0) return;
 
@@ -659,22 +704,37 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h2>{selectedSupplier.supplier} - Part Numbers</h2>
-              <button
-                onClick={() => {
-                  setSelectedSupplier(null);
-                  setParts([]);
-                }}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#f44336',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: 4,
-                  cursor: 'pointer',
-                }}
-              >
-                Close
-              </button>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  onClick={downloadPartsAsCSV}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#4caf50',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Download
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedSupplier(null);
+                    setParts([]);
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#f44336',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Close
+                </button>
+              </div>
             </div>
 
             {loadingParts ? (
