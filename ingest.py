@@ -459,14 +459,14 @@ def ingest_all_files(app, folder_path, clear_latest=False):
 
         with app.app_context():
             if clear_latest:
-                # Delete records from the most recent date to force re-ingest
+                # Delete inventory records from the most recent date to force re-ingest
+                # (keep metrics for historical charting)
                 latest_date = db.session.query(func.max(InventorySnapshot.report_date)).scalar()
                 if latest_date:
-                    print(f"Clearing data for {latest_date} to re-ingest...")
+                    print(f"Clearing inventory data for {latest_date} to re-ingest...")
                     InventorySnapshot.query.filter_by(report_date=latest_date).delete()
-                    MetricSnapshot.query.filter_by(snapshot_date=latest_date).delete()
-                    SupplierMetric.query.filter_by(snapshot_date=latest_date).delete()
                     DeliveryVariance.query.filter_by(report_date=latest_date).delete()
+                    # NOTE: NOT deleting MetricSnapshot/SupplierMetric - preserve for historical trends
                     db.session.commit()
                     existing_dates = set()
                 else:
