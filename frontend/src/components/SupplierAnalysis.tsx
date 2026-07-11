@@ -422,6 +422,67 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
     wowLabel: `${s.wow_spend_pct_change ? (s.wow_spend_pct_change > 0 ? '+' : '') + s.wow_spend_pct_change.toFixed(1) + '%' : 'N/A'}`
   }));
 
+  const downloadSuppliersAsCSV = () => {
+    if (suppliers.length === 0) return;
+
+    // Prepare CSV header
+    const headers = [
+      'Supplier',
+      'PO Spend',
+      '% Spend',
+      'Δ from prior week',
+      'Δ % from prior week',
+      'LFQ % Change',
+      'Qty On Order',
+      'Qty In Transit',
+      'Qty On Hand',
+      'Total Qty',
+      'Qty Δ from prior week',
+      'Qty Δ % from prior week',
+      'Avg Delivery Variance',
+      'PO Count'
+    ];
+
+    // Prepare CSV rows
+    const totalSpend = suppliers.reduce((sum, s) => sum + (s.total_po_spend || 0), 0);
+    const rows = getSortedSuppliers().map(s => [
+      `"${s.supplier}"`,
+      s.total_po_spend,
+      totalSpend > 0 ? ((s.total_po_spend || 0) / totalSpend * 100).toFixed(1) : '0.0',
+      s.wow_spend_change,
+      s.wow_spend_pct_change ? s.wow_spend_pct_change.toFixed(1) : 'N/A',
+      s.cfy_spend_pct_change ? s.cfy_spend_pct_change.toFixed(1) : 'N/A',
+      s.total_qty_on_order,
+      s.total_qty_in_transit,
+      s.total_qty_on_hand,
+      (s.total_qty_on_order || 0) + (s.total_qty_in_transit || 0) + (s.total_qty_on_hand || 0),
+      s.wow_qty_change,
+      s.wow_qty_pct_change ? s.wow_qty_pct_change.toFixed(1) : 'N/A',
+      s.avg_delivery_variance_days ? s.avg_delivery_variance_days.toFixed(1) : 'N/A',
+      s.po_count
+    ]);
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    const filename = 'SupplierAnalysis.csv';
+
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const downloadPartsAsCSV = () => {
     if (!selectedSupplier || parts.length === 0) return;
 
@@ -536,7 +597,22 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', border: '1px solid #ddd', borderRadius: 8, padding: 20, marginBottom: 20 }}>
-      <h2 style={{ textAlign: 'center', marginTop: 0 }}>Supplier Analysis</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <h2 style={{ marginTop: 0, marginBottom: 0 }}>Supplier Analysis</h2>
+        <button
+          onClick={downloadSuppliersAsCSV}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: '#4caf50',
+            color: 'white',
+            border: 'none',
+            borderRadius: 4,
+            cursor: 'pointer',
+          }}
+        >
+          Download
+        </button>
+      </div>
 
       <div style={{ overflowX: 'auto', display: 'flex', justifyContent: 'center' }}>
         <table style={{ borderCollapse: 'collapse', fontSize: 13 }}>
