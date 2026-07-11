@@ -794,7 +794,7 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                     cursor: 'pointer',
                   }}
                 >
-                  Download CSV
+                  Download
                 </button>
                 <button
                   onClick={() => {
