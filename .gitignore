@@ -1,4 +1,5 @@
-# Only ignore temporary/backup .db files, not inventory.db
+# Ignore all database files - they are generated on startup from Excel files
+*.db
 __pycache__/
 *.py[cod]
 *$py.class
