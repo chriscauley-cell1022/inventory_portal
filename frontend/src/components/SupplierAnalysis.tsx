@@ -175,6 +175,8 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
   const [loadingPOs, setLoadingPOs] = useState(false);
   const [poSortColumn, setPoSortColumn] = useState<string>('po_number');
   const [poSortDirection, setPoSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [baselineData, setBaselineData] = useState<{[key: string]: {total_lead_time_days: number | null}}({});
+  const [uploadingBaseline, setUploadingBaseline] = useState(false);
 
   const handleHeaderClick = (column: string) => {
     if (sortColumn === column) {
@@ -303,6 +305,7 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
     try {
       const posData: PO[] = await apiClient.getPartPOs(selectedSupplier!.supplier, part.part_number);
       setPos(posData);
+      loadBaselineForPO(selectedSupplier!.supplier, part.part_number);
     } catch (err) {
       console.error('Error loading POs:', err);
     } finally {
@@ -355,6 +358,59 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
   const calculateTotalLeadTime = (manufacturingDays: number | null, transitDays: number | null): number | null => {
     if (manufacturingDays === null || transitDays === null) return null;
     return manufacturingDays + transitDays;
+  };
+
+  const handleUploadBaselineLT = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadingBaseline(true);
+    try {
+      const result = await apiClient.uploadBaselineLT(file);
+      if (result.status === 'success') {
+        alert(`Baseline lead time data loaded: ${result.records_loaded} records`);
+      } else {
+        alert(`Error: ${result.message}`);
+      }
+    } catch (err) {
+      console.error('Error uploading baseline:', err);
+      alert('Error uploading baseline lead time data');
+    } finally {
+      setUploadingBaseline(false);
+    }
+  };
+
+  const getBaselineComplianceKey = (supplier: string, partNumber: string): string => {
+    return `${supplier}|${partNumber}`;
+  };
+
+  const loadBaselineForPO = async (supplier: string, partNumber: string) => {
+    const key = getBaselineComplianceKey(supplier, partNumber);
+    if (baselineData[key] !== undefined) return;
+
+    try {
+      const data = await apiClient.getBaselineLT(supplier, partNumber);
+      setBaselineData(prev => ({
+        ...prev,
+        [key]: data
+      }));
+    } catch (err) {
+      console.error('Error loading baseline:', err);
+    }
+  };
+
+  const getLTCompliance = (supplier: string, partNumber: string, totalLeadTime: number | null): { days: number | null; color: string } => {
+    if (totalLeadTime === null) return { days: null, color: '#000' };
+
+    const key = getBaselineComplianceKey(supplier, partNumber);
+    const baseline = baselineData[key];
+
+    if (!baseline?.total_lead_time_days) return { days: null, color: '#000' };
+
+    const variance = totalLeadTime - baseline.total_lead_time_days;
+    const color = variance > 0 ? '#f44336' : '#4caf50';
+
+    return { days: variance, color };
   };
 
   const getSortedPOs = (): PO[] => {
@@ -411,6 +467,12 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
           const bTransit = calculateTransitLeadTime(b.confirmed_del_date, b.wh_receipt_date) || 0;
           aVal = aMfg + aTransit;
           bVal = bMfg + bTransit;
+          break;
+        case 'lt_compliance':
+          const aCompliance = getLTCompliance(selectedSupplier!.supplier, selectedPart!.part_number, calculateTotalLeadTime(calculateManufactureLeadTime(a.po_date, a.confirmed_del_date), calculateTransitLeadTime(a.confirmed_del_date, a.wh_receipt_date)));
+          const bCompliance = getLTCompliance(selectedSupplier!.supplier, selectedPart!.part_number, calculateTotalLeadTime(calculateManufactureLeadTime(b.po_date, b.confirmed_del_date), calculateTransitLeadTime(b.confirmed_del_date, b.wh_receipt_date)));
+          aVal = aCompliance.days || 0;
+          bVal = bCompliance.days || 0;
           break;
         case 'status':
           aVal = (a.status || '').toLowerCase();
@@ -562,6 +624,7 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
       'Manufacture Lead Time',
       'Transit Lead Time',
       'Total Lead Time',
+      'LT Compliance',
       'Status'
     ];
 
@@ -573,6 +636,9 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
 
       const daysEarlyLate = calculateDaysEarlyLate(po.requested_del_date, po.confirmed_del_date);
       const earlyLateStr = daysEarlyLate === null ? 'N/A' : daysEarlyLate > 0 ? `${daysEarlyLate} days late` : `${Math.abs(daysEarlyLate)} days early`;
+
+      const compliance = getLTCompliance(selectedSupplier!.supplier, selectedPart!.part_number, totalDays);
+      const complianceStr = compliance.days === null ? 'N/A' : compliance.days > 0 ? `+${compliance.days} days` : `${compliance.days} days`;
 
       return [
         `"${po.po_number}"`,
@@ -586,6 +652,7 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
         mfgDays === null ? 'N/A' : `${mfgDays} days`,
         transitDays === null ? 'N/A' : `${transitDays} days`,
         totalDays === null ? 'N/A' : `${totalDays} days`,
+        complianceStr,
         po.status
       ];
     });
@@ -617,19 +684,41 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
     <div style={{ maxWidth: 1200, margin: '0 auto', border: '1px solid #ddd', borderRadius: 8, padding: 20, marginBottom: 20 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <h2 style={{ marginTop: 0, marginBottom: 0 }}>Supplier Analysis</h2>
-        <button
-          onClick={downloadSuppliersAsCSV}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: '#4caf50',
-            color: 'white',
-            border: 'none',
-            borderRadius: 4,
-            cursor: 'pointer',
-          }}
-        >
-          Download
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <label
+            style={{
+              padding: '8px 16px',
+              backgroundColor: '#2196f3',
+              color: 'white',
+              border: 'none',
+              borderRadius: 4,
+              cursor: uploadingBaseline ? 'not-allowed' : 'pointer',
+              opacity: uploadingBaseline ? 0.6 : 1,
+            }}
+          >
+            {uploadingBaseline ? 'Uploading...' : 'Upload Baseline LT'}
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleUploadBaselineLT}
+              disabled={uploadingBaseline}
+              style={{ display: 'none' }}
+            />
+          </label>
+          <button
+            onClick={downloadSuppliersAsCSV}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: '#4caf50',
+              color: 'white',
+              border: 'none',
+              borderRadius: 4,
+              cursor: 'pointer',
+            }}
+          >
+            Download
+          </button>
+        </div>
       </div>
 
       <div style={{ overflowX: 'auto', display: 'flex', justifyContent: 'center' }}>
@@ -1011,6 +1100,9 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                       <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '90px' }} onClick={() => handlePoHeaderClick('total_lead_time')}>
                         Total<br/>Lead Time {poSortColumn === 'total_lead_time' && (poSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
+                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '85px' }} onClick={() => handlePoHeaderClick('lt_compliance')}>
+                        LT<br/>Compliance {poSortColumn === 'lt_compliance' && (poSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
                       <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '70px' }} onClick={() => handlePoHeaderClick('status')}>
                         Status {poSortColumn === 'status' && (poSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
@@ -1075,6 +1167,27 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                             const transit = calculateTransitLeadTime(po.confirmed_del_date, po.wh_receipt_date);
                             if (mfg === null || transit === null) return 'N/A';
                             return `${mfg + transit} days`;
+                          })()}
+                        </td>
+                        <td style={{
+                          padding: 10,
+                          textAlign: 'center',
+                          borderBottom: '1px solid #eee',
+                          color: (() => {
+                            const mfg = calculateManufactureLeadTime(po.po_date, po.confirmed_del_date);
+                            const transit = calculateTransitLeadTime(po.confirmed_del_date, po.wh_receipt_date);
+                            const total = calculateTotalLeadTime(mfg, transit);
+                            const compliance = getLTCompliance(selectedSupplier!.supplier, selectedPart!.part_number, total);
+                            return compliance.color;
+                          })()
+                        }}>
+                          {(() => {
+                            const mfg = calculateManufactureLeadTime(po.po_date, po.confirmed_del_date);
+                            const transit = calculateTransitLeadTime(po.confirmed_del_date, po.wh_receipt_date);
+                            const total = calculateTotalLeadTime(mfg, transit);
+                            const compliance = getLTCompliance(selectedSupplier!.supplier, selectedPart!.part_number, total);
+                            if (compliance.days === null) return 'N/A';
+                            return compliance.days > 0 ? `+${compliance.days} days` : `${compliance.days} days`;
                           })()}
                         </td>
                         <td style={{ padding: 10, textAlign: 'center', borderBottom: '1px solid #eee' }}>

@@ -54,4 +54,19 @@ export const apiClient = {
     const res = await fetch(`${API_BASE}/inventory/expiring`);
     return res.json();
   },
+
+  async uploadBaselineLT(file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(`${API_BASE}/upload-baseline-lt`, {
+      method: 'POST',
+      body: formData,
+    });
+    return res.json();
+  },
+
+  async getBaselineLT(supplier: string, partNumber: string) {
+    const res = await fetch(`${API_BASE}/baseline-lt/${encodeURIComponent(supplier)}/${encodeURIComponent(partNumber)}`);
+    return res.json();
+  },
 };
