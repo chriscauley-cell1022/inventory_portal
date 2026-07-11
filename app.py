@@ -29,6 +29,17 @@ db.init_app(app)
 with app.app_context():
     db.create_all()
 
+    # On startup, ensure we have the latest inventory data
+    # Check if database is empty or stale, and refresh with latest file
+    latest_date = db.session.query(func.max(InventorySnapshot.report_date)).scalar()
+    today = datetime.now().date()
+
+    # If database is empty or data is more than 1 day old, refresh it
+    if not latest_date or (today - latest_date).days > 1:
+        print(f"⚠️  Database refresh needed (latest_date={latest_date}, today={today})")
+        ingest_all_files(app, os.path.join(basedir, 'OrebroSRD'), clear_latest=True)
+        print("✓ Database refreshed on startup")
+
 @app.route('/api/health', methods=['GET'])
 def health():
     return jsonify({'status': 'ok', 'version': '4'})
