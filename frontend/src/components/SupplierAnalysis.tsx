@@ -422,6 +422,73 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
     wowLabel: `${s.wow_spend_pct_change ? (s.wow_spend_pct_change > 0 ? '+' : '') + s.wow_spend_pct_change.toFixed(1) + '%' : 'N/A'}`
   }));
 
+  const downloadPOsAsCSV = () => {
+    if (!selectedSupplier || !selectedPart || pos.length === 0) return;
+
+    // Prepare CSV header
+    const headers = [
+      'PO Number',
+      'PO Date',
+      'Order Qty',
+      'Total Amount',
+      'Requested Del Date',
+      'Confirmed Del Date',
+      'Confirmed Early/Late',
+      'Warehouse Receipt Date',
+      'Manufacture Lead Time',
+      'Transit Lead Time',
+      'Total Lead Time',
+      'Status'
+    ];
+
+    // Prepare CSV rows
+    const rows = pos.map(po => {
+      const mfgDays = calculateManufactureLeadTime(po.po_date, po.confirmed_del_date);
+      const transitDays = calculateTransitLeadTime(po.confirmed_del_date, po.wh_receipt_date);
+      const totalDays = mfgDays !== null && transitDays !== null ? mfgDays + transitDays : null;
+
+      const daysEarlyLate = calculateDaysEarlyLate(po.requested_del_date, po.confirmed_del_date);
+      const earlyLateStr = daysEarlyLate === null ? 'N/A' : daysEarlyLate > 0 ? `${daysEarlyLate} days late` : `${Math.abs(daysEarlyLate)} days early`;
+
+      return [
+        `"${po.po_number}"`,
+        po.po_date,
+        po.order_qty,
+        po.total_amount,
+        po.requested_del_date,
+        po.confirmed_del_date,
+        earlyLateStr,
+        po.wh_receipt_date,
+        mfgDays === null ? 'N/A' : `${mfgDays} days`,
+        transitDays === null ? 'N/A' : `${transitDays} days`,
+        totalDays === null ? 'N/A' : `${totalDays} days`,
+        po.status
+      ];
+    });
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+
+    const sanitizedSupplier = selectedSupplier.supplier.replace(/\s+/g, '-');
+    const filename = `${sanitizedSupplier}_${selectedPart.part_number}_POs.csv`;
+
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', border: '1px solid #ddd', borderRadius: 8, padding: 20, marginBottom: 20 }}>
       <h2 style={{ textAlign: 'center', marginTop: 0 }}>Supplier Analysis</h2>
@@ -715,22 +782,37 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h2>{selectedSupplier?.supplier} - {selectedPart.part_number}</h2>
-              <button
-                onClick={() => {
-                  setSelectedPart(null);
-                  setPos([]);
-                }}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#f44336',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: 4,
-                  cursor: 'pointer',
-                }}
-              >
-                Close
-              </button>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  onClick={downloadPOsAsCSV}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#4caf50',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Download CSV
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedPart(null);
+                    setPos([]);
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#f44336',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Close
+                </button>
+              </div>
             </div>
 
             {loadingPOs ? (
