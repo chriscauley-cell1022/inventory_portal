@@ -320,16 +320,34 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
 
   const calculateManufactureLeadTime = (poDate: string, confirmedDate: string): number | null => {
     if (poDate === 'N/A' || confirmedDate === 'N/A') return null;
-    const po = new Date(poDate);
-    const confirmed = new Date(confirmedDate);
+    const po = parseDateDDMmmYY(poDate);
+    const confirmed = parseDateDDMmmYY(confirmedDate);
+    if (!po || !confirmed) return null;
     const diffTime = confirmed.getTime() - po.getTime();
     return Math.round(diffTime / (1000 * 60 * 60 * 24));
   };
 
+  const parseDateDDMmmYY = (dateStr: string): Date | null => {
+    if (!dateStr || dateStr === 'N/A') return null;
+    // Parse DD-Mon-YY format (e.g., "27-May-26")
+    const monthMap: { [key: string]: number } = {
+      'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
+      'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
+    };
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return null;
+    const day = parseInt(parts[0], 10);
+    const month = monthMap[parts[1]];
+    const year = 2000 + parseInt(parts[2], 10);
+    if (isNaN(day) || month === undefined || isNaN(year)) return null;
+    return new Date(year, month, day);
+  };
+
   const calculateTransitLeadTime = (confirmedDate: string, warehouseDate: string): number | null => {
     if (confirmedDate === 'N/A' || warehouseDate === 'N/A') return null;
-    const confirmed = new Date(confirmedDate);
-    const warehouse = new Date(warehouseDate);
+    const confirmed = parseDateDDMmmYY(confirmedDate);
+    const warehouse = parseDateDDMmmYY(warehouseDate);
+    if (!confirmed || !warehouse) return null;
     const diffTime = warehouse.getTime() - confirmed.getTime();
     return Math.round(diffTime / (1000 * 60 * 60 * 24));
   };
