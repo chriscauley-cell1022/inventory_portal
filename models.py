@@ -91,3 +91,18 @@ class DeliveryVariance(db.Model):
     confirmed_supplier_ship_date = db.Column(db.Date)
     variance_days = db.Column(db.Integer)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class BaselineLeadTime(db.Model):
+    __tablename__ = 'baseline_lead_time'
+
+    id = db.Column(db.Integer, primary_key=True)
+    supplier = db.Column(db.String(255), nullable=False, index=True)
+    part_number = db.Column(db.String(255), nullable=False, index=True)
+    manufacturing_lead_time_days = db.Column(db.Integer)
+    transit_lead_time_days = db.Column(db.Integer)
+    total_lead_time_days = db.Column(db.Integer)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('supplier', 'part_number', name='uq_baseline_supplier_part'),
+    )

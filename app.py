@@ -405,6 +405,92 @@ def trigger_ingest():
         traceback.print_exc()
         return jsonify({'status': 'error', 'message': str(e), 'attempted_folder': folder_path}), 500
 
+@app.route('/api/upload-baseline-lt', methods=['POST'])
+def upload_baseline_lt():
+    """Upload baseline lead time reference data from Excel file"""
+    try:
+        import pandas as pd
+        from models import BaselineLeadTime
+
+        # Check if file was provided
+        if 'file' not in request.files:
+            return jsonify({'status': 'error', 'message': 'No file provided'}), 400
+
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'status': 'error', 'message': 'No file selected'}), 400
+
+        # Read the Excel file
+        df = pd.read_excel(file)
+
+        # Expected columns
+        required_cols = {'Supplier Name', 'Item number', 'Manufacturing Lead Time', 'In-Transit Lead Time', 'Total Lead Time'}
+        if not required_cols.issubset(set(df.columns)):
+            return jsonify({
+                'status': 'error',
+                'message': f'File must contain columns: {", ".join(required_cols)}',
+                'found_columns': df.columns.tolist()
+            }), 400
+
+        # Clear existing baseline data
+        BaselineLeadTime.query.delete()
+        db.session.commit()
+
+        # Load new baseline data
+        added_count = 0
+        for idx, row in df.iterrows():
+            supplier = str(row['Supplier Name']).strip()
+            part_number = str(row['Item number']).strip()
+            mfg_lt = int(row['Manufacturing Lead Time']) if pd.notna(row['Manufacturing Lead Time']) else None
+            transit_lt = int(row['In-Transit Lead Time']) if pd.notna(row['In-Transit Lead Time']) else None
+            total_lt = int(row['Total Lead Time']) if pd.notna(row['Total Lead Time']) else None
+
+            baseline = BaselineLeadTime(
+                supplier=supplier,
+                part_number=part_number,
+                manufacturing_lead_time_days=mfg_lt,
+                transit_lead_time_days=transit_lt,
+                total_lead_time_days=total_lt
+            )
+            db.session.add(baseline)
+            added_count += 1
+
+        db.session.commit()
+        return jsonify({
+            'status': 'success',
+            'message': f'Baseline lead time data loaded successfully',
+            'records_loaded': added_count
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/baseline-lt/<supplier>/<part_number>', methods=['GET'])
+def get_baseline_lt(supplier, part_number):
+    """Get baseline lead time for a supplier and part number"""
+    from models import BaselineLeadTime
+
+    baseline = BaselineLeadTime.query.filter_by(
+        supplier=supplier,
+        part_number=part_number
+    ).first()
+
+    if not baseline:
+        return jsonify({
+            'supplier': supplier,
+            'part_number': part_number,
+            'total_lead_time_days': None
+        })
+
+    return jsonify({
+        'supplier': supplier,
+        'part_number': part_number,
+        'manufacturing_lead_time_days': baseline.manufacturing_lead_time_days,
+        'transit_lead_time_days': baseline.transit_lead_time_days,
+        'total_lead_time_days': baseline.total_lead_time_days
+    })
+
 @app.route('/api/data-status', methods=['GET'])
 def check_data_status():
     """Check if data has been ingested"""
