@@ -1,6 +1,6 @@
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
-from models import db, InventorySnapshot, MetricSnapshot, SupplierMetric, DeliveryVariance
+from models import db, InventorySnapshot, MetricSnapshot, SupplierMetric, DeliveryVariance, BaselineLeadTime
 from ingest import ingest_all_files
 import os
 from datetime import datetime, timedelta
@@ -39,6 +39,12 @@ with app.app_context():
         print(f"⚠️  Database refresh needed (latest_date={latest_date}, today={today})")
         ingest_all_files(app, os.path.join(basedir, 'OrebroSRD'), clear_latest=True)
         print("✓ Database refreshed on startup")
+
+    # Restore BaselineLeadTime data on startup if database is empty but backup exists
+    baseline_count = db.session.query(func.count(BaselineLeadTime.id)).scalar()
+    if baseline_count == 0:
+        from ingest import restore_baseline_lead_times
+        restore_baseline_lead_times(basedir)
 
 @app.route('/api/health', methods=['GET'])
 def health():
@@ -108,19 +114,7 @@ def get_suppliers():
 
     data = []
     for s in suppliers:
-        wow_spend_pct = None
-        wow_qty_pct = None
         cfy_spend_pct = None
-
-        if s.wow_spend_change is not None and s.total_po_spend is not None:
-            prev_spend = s.total_po_spend - (s.wow_spend_change or 0)
-            if prev_spend > 0:
-                wow_spend_pct = (s.wow_spend_change / prev_spend) * 100
-
-        if s.wow_qty_change is not None and s.total_po_quantity is not None:
-            prev_qty = s.total_po_quantity - (s.wow_qty_change or 0)
-            if prev_qty > 0:
-                wow_qty_pct = (s.wow_qty_change / prev_qty) * 100
 
         # Calculate LFQ (Last Fiscal Quarter) open PO spend change
         # Get end date of last fiscal quarter
@@ -168,9 +162,9 @@ def get_suppliers():
             'avg_delivery_variance_days': round(s.avg_delivery_variance_days or 0, 1),
             'po_count': s.po_count or 0,
             'wow_spend_change': round(s.wow_spend_change or 0, 2),
-            'wow_spend_pct_change': round(wow_spend_pct, 1) if wow_spend_pct is not None else None,
+            'wow_spend_pct_change': round(s.wow_spend_pct_change, 1) if s.wow_spend_pct_change is not None else None,
             'wow_qty_change': s.wow_qty_change or 0,
-            'wow_qty_pct_change': round(wow_qty_pct, 1) if wow_qty_pct is not None else None,
+            'wow_qty_pct_change': round(s.wow_qty_pct_change, 1) if s.wow_qty_pct_change is not None else None,
         })
 
     return jsonify(data)
@@ -253,6 +247,7 @@ def get_part_pos(supplier, part_number):
             'confirmed_del_date': format_date(po.expected_delivery_date),
             'wh_receipt_date': format_date(po.actual_delivery_date),
             'status': status,
+            'warehouse': po.warehouse or 'N/A',
             'qty_on_order': po.qty_on_order or 0,
             'qty_in_transit': po.qty_in_transit or 0,
             'qty_on_hand': po.qty_on_hand or 0,
@@ -432,11 +427,7 @@ def upload_baseline_lt():
                 'found_columns': df.columns.tolist()
             }), 400
 
-        # Clear existing baseline data
-        BaselineLeadTime.query.delete()
-        db.session.commit()
-
-        # Load new baseline data
+        # Load baseline data - upsert (update if exists, insert if new)
         added_count = 0
         for idx, row in df.iterrows():
             supplier = str(row['Supplier Name']).strip()
@@ -445,14 +436,28 @@ def upload_baseline_lt():
             transit_lt = int(row['In-Transit Lead Time']) if pd.notna(row['In-Transit Lead Time']) else None
             total_lt = int(row['Total Lead Time']) if pd.notna(row['Total Lead Time']) else None
 
-            baseline = BaselineLeadTime(
+            # Check if record exists
+            existing = BaselineLeadTime.query.filter_by(
                 supplier=supplier,
-                part_number=part_number,
-                manufacturing_lead_time_days=mfg_lt,
-                transit_lead_time_days=transit_lt,
-                total_lead_time_days=total_lt
-            )
-            db.session.add(baseline)
+                part_number=part_number
+            ).first()
+
+            if existing:
+                # Update existing record
+                existing.manufacturing_lead_time_days = mfg_lt
+                existing.transit_lead_time_days = transit_lt
+                existing.total_lead_time_days = total_lt
+            else:
+                # Create new record
+                baseline = BaselineLeadTime(
+                    supplier=supplier,
+                    part_number=part_number,
+                    manufacturing_lead_time_days=mfg_lt,
+                    transit_lead_time_days=transit_lt,
+                    total_lead_time_days=total_lt
+                )
+                db.session.add(baseline)
+
             added_count += 1
 
         db.session.commit()
@@ -531,6 +536,7 @@ def get_expiring_inventory():
     """Get inventory approaching expiration"""
     from datetime import date as date_type
 
+    today = date_type.today()
     latest_date = db.session.query(func.max(InventorySnapshot.report_date)).scalar()
 
     if not latest_date:
@@ -552,13 +558,20 @@ def get_expiring_inventory():
     agg_dict = {}
 
     for item in inventory:
+        # Calculate days_remaining and inventory_age against today's date
+        days_remaining = None
+        inventory_age = None
+        if item.final_delivery_date:
+            days_remaining = (item.final_delivery_date - today).days
+            inventory_age = 365 - days_remaining
+
         key = (
             item.supplier or '',
             item.po_number or '',
             item.part_number or 'N/A',
             str(item.final_delivery_date) if item.final_delivery_date else '',
-            item.days_remaining or 0,
-            item.inventory_age or 0,
+            days_remaining or 0,
+            inventory_age or 0,
         )
 
         # Calculate open quantity (not called off)
@@ -593,13 +606,20 @@ def get_expiring_inventory():
     # Aggregate overdue items
     overdue_dict = {}
     for item in overdue_inventory:
+        # Calculate days_remaining and inventory_age against today's date
+        days_remaining = None
+        inventory_age = None
+        if item.final_delivery_date:
+            days_remaining = (item.final_delivery_date - today).days
+            inventory_age = 365 - days_remaining
+
         key = (
             item.supplier or '',
             item.po_number or '',
             item.part_number or 'N/A',
             str(item.final_delivery_date) if item.final_delivery_date else '',
-            item.days_remaining or 0,
-            item.inventory_age or 0,
+            days_remaining or 0,
+            inventory_age or 0,
         )
 
         qty = (item.qty_on_order or 0) + (item.qty_in_transit or 0) + (item.qty_on_hand or 0)

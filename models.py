@@ -28,6 +28,7 @@ class InventorySnapshot(db.Model):
     qty_called_off_delivered = db.Column(db.Float)
     qty_called_off_committed = db.Column(db.Float)
     currency = db.Column(db.String(3), default='EUR')
+    warehouse = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     __table_args__ = (
@@ -73,7 +74,9 @@ class SupplierMetric(db.Model):
     avg_delivery_variance_days = db.Column(db.Float)
     po_count = db.Column(db.Integer)
     wow_spend_change = db.Column(db.Float)
+    wow_spend_pct_change = db.Column(db.Float)
     wow_qty_change = db.Column(db.Float)
+    wow_qty_pct_change = db.Column(db.Float)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     __table_args__ = (

@@ -4,12 +4,76 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import re
 import shutil
+import json
 from openpyxl import load_workbook
-from models import db, InventorySnapshot, MetricSnapshot, SupplierMetric, DeliveryVariance
+from models import db, InventorySnapshot, MetricSnapshot, SupplierMetric, DeliveryVariance, BaselineLeadTime
 from sqlalchemy import func
 
 # Currency conversion rates (as of 2026)
 SEK_TO_EUR = 0.0945  # Approximate conversion rate
+
+def backup_baseline_lead_times(basedir):
+    """Backup BaselineLeadTime data to JSON file"""
+    baseline_backup_path = os.path.join(basedir, '.baseline_lead_times.json')
+    try:
+        baseline_records = BaselineLeadTime.query.all()
+        data = [
+            {
+                'supplier': r.supplier,
+                'part_number': r.part_number,
+                'manufacturing_lead_time_days': r.manufacturing_lead_time_days,
+                'transit_lead_time_days': r.transit_lead_time_days,
+                'total_lead_time_days': r.total_lead_time_days
+            }
+            for r in baseline_records
+        ]
+        with open(baseline_backup_path, 'w') as f:
+            json.dump(data, f)
+        if data:
+            print(f"✓ Backed up {len(data)} baseline lead time records")
+        return True
+    except Exception as e:
+        print(f"Note: Could not backup baseline data: {e}")
+        return False
+
+def restore_baseline_lead_times(basedir):
+    """Restore BaselineLeadTime data from JSON backup"""
+    baseline_backup_path = os.path.join(basedir, '.baseline_lead_times.json')
+    if not os.path.exists(baseline_backup_path):
+        return False
+
+    try:
+        with open(baseline_backup_path, 'r') as f:
+            data = json.load(f)
+
+        restored_count = 0
+        for record in data:
+            # Check if record already exists (avoid duplicates)
+            existing = BaselineLeadTime.query.filter_by(
+                supplier=record['supplier'],
+                part_number=record['part_number']
+            ).first()
+
+            if not existing:
+                baseline = BaselineLeadTime(
+                    supplier=record['supplier'],
+                    part_number=record['part_number'],
+                    manufacturing_lead_time_days=record.get('manufacturing_lead_time_days'),
+                    transit_lead_time_days=record.get('transit_lead_time_days'),
+                    total_lead_time_days=record.get('total_lead_time_days')
+                )
+                db.session.add(baseline)
+                restored_count += 1
+
+        if restored_count > 0:
+            db.session.commit()
+            print(f"✓ Restored {restored_count} baseline lead time records from backup")
+        else:
+            print("✓ No new baseline records to restore (already in database)")
+        return True
+    except Exception as e:
+        print(f"Note: Could not restore baseline data: {e}")
+        return False
 
 def backup_database(app):
     """Create a timestamped backup of the current database"""
@@ -220,14 +284,19 @@ def ingest_inventory_file(file_path, app):
 
                 actual_delivery_date = safe_to_date(row.get('Expected Delivery Date & Actual Delivery Date to DWM Warehouse'))
                 final_delivery_date = safe_to_date(row.get('Final Delivery Date'))
+                dwm_order_date = safe_to_date(row.get('DWM Order Date'))
+
                 days_remaining = None
+                inventory_age = None
                 if final_delivery_date:
                     days_remaining = (final_delivery_date - report_date).days
+                    # Inventory age is 365 days minus days remaining (assumes 365-day shelf life)
+                    inventory_age = 365 - days_remaining
 
                 snapshot = InventorySnapshot(
                     report_date=report_date,
                     po_number=po_number,
-                    dwm_order_date=safe_to_date(row.get('DWM Order Date')),
+                    dwm_order_date=dwm_order_date,
                     supplier=str(row.get('Supplier', '')).strip(),
                     part_number=str(row.get('Part No.', '')).strip() if pd.notna(row.get('Part No.')) else None,
                     part_description=str(row.get('Part Description', '')).strip() if pd.notna(row.get('Part Description')) else None,
@@ -236,6 +305,7 @@ def ingest_inventory_file(file_path, app):
                     actual_delivery_date=actual_delivery_date,
                     final_delivery_date=final_delivery_date,
                     days_remaining=days_remaining,
+                    inventory_age=inventory_age,
                     po_quantity=safe_to_float(row.get('PO Quantity')),
                     total_po_amount=convert_currency(row.get('Total PO Amount'), row.get('Currency', 'EUR')),
                     qty_on_order=safe_to_float(row.get('DWM Qty On Order')),
@@ -244,6 +314,7 @@ def ingest_inventory_file(file_path, app):
                     qty_called_off_delivered=safe_to_float(row.get('DWM Qty Called Off (Delivered)')),
                     qty_called_off_committed=safe_to_float(row.get('DWM Qty Called Off (Committed)')),
                     currency='EUR',
+                    warehouse=str(row.get('Warehouse', '')).strip().upper() if pd.notna(row.get('Warehouse')) else None,
                 )
                 db.session.add(snapshot)
                 row_count += 1
@@ -277,13 +348,33 @@ def calculate_metrics(report_date, app):
 
         # Aggregate totals (not cumulative - just this week's snapshot)
         # Only count POs with quantity > 0
-        total_po_spend = sum(s.total_po_amount or 0 for s in snapshots)
         total_po_quantity = sum(s.po_quantity or 0 for s in snapshots)
         total_qty_on_order = sum(s.qty_on_order or 0 for s in snapshots)
         total_qty_in_transit = sum(s.qty_in_transit or 0 for s in snapshots)
         total_qty_on_hand = sum(s.qty_on_hand or 0 for s in snapshots)
+        total_qty_open = total_qty_on_order + total_qty_in_transit + total_qty_on_hand
         # Called-off = original PO quantity minus remaining open quantities
-        total_qty_called_off = max(0, total_po_quantity - (total_qty_on_order + total_qty_in_transit + total_qty_on_hand))
+        total_qty_called_off = max(0, total_po_quantity - total_qty_open)
+
+        # Calculate total_po_spend excluding called-off amounts
+        # Only apply proportional calculation for pre-31 May files (old format with one row per PO)
+        # Post-31 May files already exclude called-off because they have one row per unit
+        use_proportional = report_date <= datetime.strptime('2026-05-31', '%Y-%m-%d').date()
+
+        total_po_spend = 0
+        for s in snapshots:
+            if s.po_quantity and s.po_quantity > 0:
+                if use_proportional:
+                    # Old format: apply proportional calculation
+                    open_qty = (s.qty_on_order or 0) + (s.qty_in_transit or 0) + (s.qty_on_hand or 0)
+                    if open_qty > 0:
+                        proportional_amount = (open_qty / s.po_quantity) * (s.total_po_amount or 0)
+                    else:
+                        proportional_amount = 0
+                    total_po_spend += proportional_amount
+                else:
+                    # New format: use full amount (called-off already excluded)
+                    total_po_spend += (s.total_po_amount or 0)
 
         # Get previous week data
         prev_week_date = report_date - timedelta(days=7)
@@ -296,7 +387,21 @@ def calculate_metrics(report_date, app):
         wow_quantity_pct_change = None
 
         if prev_week_snapshots:
-            prev_spend = sum(s.total_po_amount or 0 for s in prev_week_snapshots)
+            # Calculate previous week spend excluding called-off (same logic as current week)
+            prev_use_proportional = prev_week_date <= datetime.strptime('2026-05-31', '%Y-%m-%d').date()
+            prev_spend = 0
+            for s in prev_week_snapshots:
+                if s.po_quantity and s.po_quantity > 0:
+                    if prev_use_proportional:
+                        open_qty = (s.qty_on_order or 0) + (s.qty_in_transit or 0) + (s.qty_on_hand or 0)
+                        if open_qty > 0:
+                            proportional_amount = (open_qty / s.po_quantity) * (s.total_po_amount or 0)
+                        else:
+                            proportional_amount = 0
+                        prev_spend += proportional_amount
+                    else:
+                        prev_spend += (s.total_po_amount or 0)
+
             prev_qty = sum(s.po_quantity or 0 for s in prev_week_snapshots)
 
             wow_spend_change = total_po_spend - prev_spend
@@ -318,7 +423,21 @@ def calculate_metrics(report_date, app):
         mom_quantity_pct_change = None
 
         if prev_month_snapshots:
-            prev_spend = sum(s.total_po_amount or 0 for s in prev_month_snapshots)
+            # Calculate previous month spend excluding called-off (same logic as current week)
+            prev_use_proportional = prev_month_date <= datetime.strptime('2026-05-31', '%Y-%m-%d').date()
+            prev_spend = 0
+            for s in prev_month_snapshots:
+                if s.po_quantity and s.po_quantity > 0:
+                    if prev_use_proportional:
+                        open_qty = (s.qty_on_order or 0) + (s.qty_in_transit or 0) + (s.qty_on_hand or 0)
+                        if open_qty > 0:
+                            proportional_amount = (open_qty / s.po_quantity) * (s.total_po_amount or 0)
+                        else:
+                            proportional_amount = 0
+                        prev_spend += proportional_amount
+                    else:
+                        prev_spend += (s.total_po_amount or 0)
+
             prev_qty = sum(s.po_quantity or 0 for s in prev_month_snapshots)
 
             mom_spend_change = total_po_spend - prev_spend
@@ -404,7 +523,9 @@ def calculate_metrics(report_date, app):
             # Calculate WoW for this supplier
             prev_supplier_snapshots = [s for s in prev_week_snapshots if s.supplier == supplier] if prev_week_snapshots else []
             wow_spend = None
+            wow_spend_pct = None
             wow_qty = None
+            wow_qty_pct = None
 
             if prev_supplier_snapshots:
                 # Calculate previous week's open spend (same logic as current week)
@@ -419,7 +540,12 @@ def calculate_metrics(report_date, app):
                     prev_supplier_spend = 0
 
                 wow_spend = supplier_spend - prev_supplier_spend
+                if prev_supplier_spend > 0:
+                    wow_spend_pct = (wow_spend / prev_supplier_spend) * 100
+
                 wow_qty = supplier_qty - prev_supplier_qty
+                if prev_supplier_qty > 0:
+                    wow_qty_pct = (wow_qty / prev_supplier_qty) * 100
 
             # Delete existing supplier metric for this date/supplier
             SupplierMetric.query.filter_by(snapshot_date=report_date, supplier=supplier).delete()
@@ -436,7 +562,9 @@ def calculate_metrics(report_date, app):
                 avg_delivery_variance_days=avg_variance,
                 po_count=len(supplier_snapshots),
                 wow_spend_change=wow_spend,
+                wow_spend_pct_change=wow_spend_pct,
                 wow_qty_change=wow_qty,
+                wow_qty_pct_change=wow_qty_pct,
             )
 
             db.session.add(supplier_metric)
@@ -472,8 +600,13 @@ def ingest_all_files(app, folder_path, clear_latest=False):
         # Sort by filename (works with YYYY-MM-DD_ prefix format)
         inventory_files = sorted(inventory_files)
 
+        basedir = os.path.abspath(os.path.dirname(__file__))
+
         with app.app_context():
             if clear_latest:
+                # Backup BaselineLeadTime data before clearing
+                backup_baseline_lead_times(basedir)
+
                 # Delete inventory records from the most recent date to force re-ingest
                 # (keep metrics for historical charting)
                 latest_date = db.session.query(func.max(InventorySnapshot.report_date)).scalar()
@@ -510,6 +643,10 @@ def ingest_all_files(app, folder_path, clear_latest=False):
             print("ERROR: No inventory files found!")
 
         print(f"Finished ingesting {ingested_count} files")
+
+        # Restore BaselineLeadTime data if it was backed up
+        with app.app_context():
+            restore_baseline_lead_times(basedir)
 
         # Populate missing warehouse dates after successful ingest
         if ingested_count > 0:
