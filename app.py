@@ -666,6 +666,42 @@ def get_expiring_inventory():
         'expiring_30_days': expiring_30,
     })
 
+@app.route('/api/inventory/by-warehouse', methods=['GET'])
+def get_inventory_by_warehouse():
+    from sqlalchemy import func, case
+
+    latest_date = db.session.query(func.max(InventorySnapshot.report_date)).scalar()
+    if not latest_date:
+        return jsonify({'warehouses': []})
+
+    # Calculate on-hand value: qty_on_hand * (total_po_amount / po_quantity)
+    on_hand_value = case(
+        (InventorySnapshot.po_quantity > 0,
+         InventorySnapshot.qty_on_hand * (InventorySnapshot.total_po_amount / InventorySnapshot.po_quantity)),
+        else_=0
+    )
+
+    result = db.session.query(
+        InventorySnapshot.warehouse,
+        func.sum(on_hand_value).label('total_value')
+    ).filter(
+        InventorySnapshot.report_date == latest_date
+    ).group_by(
+        InventorySnapshot.warehouse
+    ).order_by(
+        func.sum(on_hand_value).desc()
+    ).all()
+
+    warehouses = []
+    for warehouse, total_value in result:
+        if warehouse and warehouse.strip():
+            warehouses.append({
+                'warehouse': warehouse.strip(),
+                'total_value': float(total_value) if total_value else 0
+            })
+
+    return jsonify({'warehouses': warehouses})
+
 @app.route('/api/databases', methods=['GET'])
 def list_databases():
     """List available database snapshots"""

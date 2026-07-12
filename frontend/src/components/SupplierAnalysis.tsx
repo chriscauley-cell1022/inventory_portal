@@ -764,7 +764,7 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
               <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '75px' }} onClick={() => handleHeaderClick('cfy_spend_pct_change')}>
                 % Δ LFQ {sortColumn === 'cfy_spend_pct_change' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
-              <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', borderLeft: '2px solid #b3e5fc', cursor: 'pointer', whiteSpace: 'normal', width: '75px' }} onClick={() => handleHeaderClick('total_qty_on_order')}>
+              <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '75px' }} onClick={() => handleHeaderClick('total_qty_on_order')}>
                 On Order {sortColumn === 'total_qty_on_order' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
               <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '75px' }} onClick={() => handleHeaderClick('total_qty_in_transit')}>
@@ -1122,7 +1122,7 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                         Total<br/>Lead Time {poSortColumn === 'total_lead_time' && (poSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
                       <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '85px' }} onClick={() => handlePoHeaderClick('lt_compliance')}>
-                        LT<br/>Compliance {poSortColumn === 'lt_compliance' && (poSortDirection === 'asc' ? '↑' : '↓')}
+                        LT<br/>Variance {poSortColumn === 'lt_compliance' && (poSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
                       <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '70px' }} onClick={() => handlePoHeaderClick('status')}>
                         Status {poSortColumn === 'status' && (poSortDirection === 'asc' ? '↑' : '↓')}

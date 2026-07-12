@@ -3,6 +3,7 @@ import './App.css';
 import { apiClient } from './api';
 import InventorySummary from './components/InventorySummary';
 import SupplierAnalysis from './components/SupplierAnalysis';
+import InventoryByWarehouse from './components/InventoryByWarehouse';
 import TrendChart from './components/TrendChart';
 import ExpiringInventory from './components/ExpiringInventory';
 
@@ -184,6 +185,10 @@ function App() {
 
             {trends.length > 0 && (
               <>
+                <div style={{ maxWidth: 1200, margin: '0 auto', border: '1px solid #ddd', borderRadius: 8, padding: 20, marginBottom: 20 }}>
+                  <InventoryByWarehouse triggerRefresh={trends.length} />
+                </div>
+
                 <div style={{ maxWidth: 1200, margin: '0 auto', border: '1px solid #ddd', borderRadius: 8, padding: 20, marginBottom: 20 }}>
                   <TrendChart
                     data={trends}

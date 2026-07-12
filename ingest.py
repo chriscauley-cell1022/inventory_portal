@@ -455,15 +455,16 @@ def calculate_metrics(report_date, app):
         else:
             open_po_spend = 0
 
-        # Calculate spend by status
-        if total_po_quantity > 0:
-            spend_on_order = (total_qty_on_order / total_po_quantity) * total_po_spend
-            spend_in_transit = (total_qty_in_transit / total_po_quantity) * total_po_spend
-            spend_on_hand = (total_qty_on_hand / total_po_quantity) * total_po_spend
-        else:
-            spend_on_order = 0
-            spend_in_transit = 0
-            spend_on_hand = 0
+        # Calculate spend by status (sum of qty * unit_price for each item)
+        spend_on_order = 0
+        spend_in_transit = 0
+        spend_on_hand = 0
+        for item in inventory:
+            if item.po_quantity and item.po_quantity > 0:
+                unit_price = item.total_po_amount / item.po_quantity
+                spend_on_order += (item.qty_on_order or 0) * unit_price
+                spend_in_transit += (item.qty_in_transit or 0) * unit_price
+                spend_on_hand += (item.qty_on_hand or 0) * unit_price
 
         # Delete existing metric for this date
         MetricSnapshot.query.filter_by(snapshot_date=report_date).delete()

@@ -69,4 +69,9 @@ export const apiClient = {
     const res = await fetch(`${API_BASE}/baseline-lt/${encodeURIComponent(supplier)}/${encodeURIComponent(partNumber)}`);
     return res.json();
   },
+
+  async getInventoryByWarehouse() {
+    const res = await fetch(`${API_BASE}/inventory/by-warehouse`);
+    return res.json();
+  },
 };
