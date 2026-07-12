@@ -61,7 +61,10 @@ function App() {
       ]);
 
       setSummary(summaryData);
-      setTrends(trendsData || []);
+      // Limit trends to past 12 weeks
+      const allTrends = trendsData || [];
+      const last12Weeks = allTrends.slice(-12);
+      setTrends(last12Weeks);
       setSuppliers(suppliersData || []);
     } catch (err) {
       setError(`Error loading data: ${err}`);

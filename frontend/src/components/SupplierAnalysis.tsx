@@ -160,6 +160,7 @@ interface PO {
   confirmed_del_date: string;
   wh_receipt_date: string;
   status: string;
+  warehouse: string;
 }
 
 const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
@@ -399,18 +400,34 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
     }
   };
 
-  const getLTCompliance = (supplier: string, partNumber: string, totalLeadTime: number | null): { days: number | null; color: string } => {
-    if (totalLeadTime === null) return { days: null, color: '#000' };
-
+  const getLTCompliance = (supplier: string, partNumber: string, poDate: string, whReceiptDate: string, status?: string): { days: number | null; color: string; isExpected: boolean } => {
     const key = getBaselineComplianceKey(supplier, partNumber);
     const baseline = baselineData[key];
 
-    if (!baseline?.total_lead_time_days) return { days: null, color: '#000' };
+    if (!baseline?.total_lead_time_days) return { days: null, color: '#000', isExpected: false };
 
-    const variance = totalLeadTime - baseline.total_lead_time_days;
-    const color = variance > 0 ? '#f44336' : '#4caf50';
+    const poDateObj = parseDateDDMmmYY(poDate);
+    if (!poDateObj) return { days: null, color: '#000', isExpected: false };
 
-    return { days: variance, color };
+    // For on-order items, use confirmed_del_date for expected calculation
+    const isOnOrder = status === 'On Order';
+    const receiptDateStr = isOnOrder ? whReceiptDate : whReceiptDate;
+
+    if (receiptDateStr === 'N/A') return { days: null, color: '#000', isExpected: false };
+
+    const receiptDateObj = parseDateDDMmmYY(receiptDateStr);
+    if (!receiptDateObj) return { days: null, color: '#000', isExpected: false };
+
+    // Calculate expected receipt date
+    const expectedReceiptDate = new Date(poDateObj);
+    expectedReceiptDate.setDate(expectedReceiptDate.getDate() + baseline.total_lead_time_days);
+
+    // Calculate days early/late (positive = late, negative = early)
+    const daysEarlyLate = Math.round((receiptDateObj.getTime() - expectedReceiptDate.getTime()) / (1000 * 60 * 60 * 24));
+
+    const color = daysEarlyLate > 0 ? '#f44336' : daysEarlyLate < 0 ? '#4caf50' : '#ff9800';
+
+    return { days: daysEarlyLate, color, isExpected: isOnOrder };
   };
 
   const getSortedPOs = (): PO[] => {
@@ -469,8 +486,8 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
           bVal = bMfg + bTransit;
           break;
         case 'lt_compliance':
-          const aCompliance = getLTCompliance(selectedSupplier!.supplier, selectedPart!.part_number, calculateTotalLeadTime(calculateManufactureLeadTime(a.po_date, a.confirmed_del_date), calculateTransitLeadTime(a.confirmed_del_date, a.wh_receipt_date)));
-          const bCompliance = getLTCompliance(selectedSupplier!.supplier, selectedPart!.part_number, calculateTotalLeadTime(calculateManufactureLeadTime(b.po_date, b.confirmed_del_date), calculateTransitLeadTime(b.confirmed_del_date, b.wh_receipt_date)));
+          const aCompliance = getLTCompliance(selectedSupplier!.supplier, selectedPart!.part_number, a.po_date, a.wh_receipt_date, a.status);
+          const bCompliance = getLTCompliance(selectedSupplier!.supplier, selectedPart!.part_number, b.po_date, b.wh_receipt_date, b.status);
           aVal = aCompliance.days || 0;
           bVal = bCompliance.days || 0;
           break;
@@ -637,8 +654,8 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
       const daysEarlyLate = calculateDaysEarlyLate(po.requested_del_date, po.confirmed_del_date);
       const earlyLateStr = daysEarlyLate === null ? 'N/A' : daysEarlyLate > 0 ? `${daysEarlyLate} days late` : `${Math.abs(daysEarlyLate)} days early`;
 
-      const compliance = getLTCompliance(selectedSupplier!.supplier, selectedPart!.part_number, totalDays);
-      const complianceStr = compliance.days === null ? 'N/A' : compliance.days > 0 ? `+${compliance.days} days` : `${compliance.days} days`;
+      const compliance = getLTCompliance(selectedSupplier!.supplier, selectedPart!.part_number, po.po_date, po.wh_receipt_date, po.status);
+      const complianceStr = compliance.days === null ? 'N/A' : compliance.days > 0 ? `${compliance.isExpected ? 'Expected ' : ''}${compliance.days} days late` : `${compliance.isExpected ? 'Expected ' : ''}${Math.abs(compliance.days)} days early`;
 
       return [
         `"${po.po_number}"`,
@@ -682,9 +699,9 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', border: '1px solid #ddd', borderRadius: 8, padding: 20, marginBottom: 20 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <h2 style={{ marginTop: 0, marginBottom: 0, flex: 1, textAlign: 'center' }}>Supplier Analysis</h2>
-        <div style={{ display: 'flex', gap: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 20, position: 'relative' }}>
+        <h2 style={{ marginTop: 0, marginBottom: 0, position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>Supplier Analysis</h2>
+        <div style={{ display: 'flex', gap: 10, marginLeft: 'auto' }}>
           <label
             style={{
               padding: '6px 12px',
@@ -747,7 +764,7 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
               <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '75px' }} onClick={() => handleHeaderClick('cfy_spend_pct_change')}>
                 % Δ LFQ {sortColumn === 'cfy_spend_pct_change' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
-              <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '75px' }} onClick={() => handleHeaderClick('total_qty_on_order')}>
+              <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', borderLeft: '2px solid #b3e5fc', cursor: 'pointer', whiteSpace: 'normal', width: '75px' }} onClick={() => handleHeaderClick('total_qty_on_order')}>
                 On Order {sortColumn === 'total_qty_on_order' && (sortDirection === 'asc' ? '↑' : '↓')}
               </th>
               <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '75px' }} onClick={() => handleHeaderClick('total_qty_in_transit')}>
@@ -1110,6 +1127,9 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                       <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '70px' }} onClick={() => handlePoHeaderClick('status')}>
                         Status {poSortColumn === 'status' && (poSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
+                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '120px' }} onClick={() => handlePoHeaderClick('warehouse')}>
+                        Warehouse {poSortColumn === 'warehouse' && (poSortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1178,24 +1198,22 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                           textAlign: 'center',
                           borderBottom: '1px solid #eee',
                           color: (() => {
-                            const mfg = calculateManufactureLeadTime(po.po_date, po.confirmed_del_date);
-                            const transit = calculateTransitLeadTime(po.confirmed_del_date, po.wh_receipt_date);
-                            const total = calculateTotalLeadTime(mfg, transit);
-                            const compliance = getLTCompliance(selectedSupplier!.supplier, selectedPart!.part_number, total);
+                            const compliance = getLTCompliance(selectedSupplier!.supplier, selectedPart!.part_number, po.po_date, po.wh_receipt_date, po.status);
                             return compliance.color;
                           })()
                         }}>
                           {(() => {
-                            const mfg = calculateManufactureLeadTime(po.po_date, po.confirmed_del_date);
-                            const transit = calculateTransitLeadTime(po.confirmed_del_date, po.wh_receipt_date);
-                            const total = calculateTotalLeadTime(mfg, transit);
-                            const compliance = getLTCompliance(selectedSupplier!.supplier, selectedPart!.part_number, total);
+                            const compliance = getLTCompliance(selectedSupplier!.supplier, selectedPart!.part_number, po.po_date, po.wh_receipt_date, po.status);
                             if (compliance.days === null) return 'N/A';
-                            return compliance.days > 0 ? `+${compliance.days} days` : `${compliance.days} days`;
+                            const prefix = compliance.isExpected ? 'Expected ' : '';
+                            return compliance.days > 0 ? `${prefix}${compliance.days} days late` : `${prefix}${Math.abs(compliance.days)} days early`;
                           })()}
                         </td>
                         <td style={{ padding: 10, textAlign: 'center', borderBottom: '1px solid #eee' }}>
                           {po.status}
+                        </td>
+                        <td style={{ padding: 10, textAlign: 'center', borderBottom: '1px solid #eee' }}>
+                          {po.warehouse}
                         </td>
                       </tr>
                     ))}

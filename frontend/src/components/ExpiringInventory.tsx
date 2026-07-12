@@ -138,10 +138,17 @@ const ExpiringInventory: React.FC<ExpiringInventoryProps> = ({ triggerRefresh })
     return <div>No expiring inventory data available</div>;
   }
 
-  const ExpiringTable: React.FC<{ items: ExpiringItem[]; title: string; hideTitle?: boolean; sortColumn: string; sortDirection: 'asc' | 'desc'; onHeaderClick: (col: string) => void }> = ({ items, title, hideTitle = false, sortColumn, sortDirection, onHeaderClick }) => (
+  const safeData = {
+    overdue_items: data.overdue_items || [],
+    expiring_30_days: data.expiring_30_days || [],
+    expiring_60_days: data.expiring_60_days || [],
+    date: data.date || new Date().toISOString().split('T')[0],
+  };
+
+  const ExpiringTable: React.FC<{ items: ExpiringItem[]; title: string; hideTitle?: boolean; sortColumn: string; sortDirection: 'asc' | 'desc'; onHeaderClick: (col: string) => void }> = ({ items = [], title, hideTitle = false, sortColumn, sortDirection, onHeaderClick }) => (
     <div style={{ marginBottom: 40, maxWidth: 1200, margin: '10px auto 40px auto' }}>
       {!hideTitle && <h3 style={{ textAlign: 'center', margin: '0 0 15px 0' }}>{title}</h3>}
-      {items.length === 0 ? (
+      {(!items || items.length === 0) ? (
         <div style={{ color: '#666', padding: 20, textAlign: 'center' }}>No items in this category</div>
       ) : (
         <div style={{ overflowX: 'auto', display: 'flex', justifyContent: 'center' }}>
@@ -170,7 +177,7 @@ const ExpiringInventory: React.FC<ExpiringInventoryProps> = ({ triggerRefresh })
                   Final Delivery Date
                 </th>
                 <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '100px' }} onClick={() => onHeaderClick('inventory_age')}>
-                  Inventory Age (Days) {sortColumn === 'inventory_age' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  Inventory Age {sortColumn === 'inventory_age' && (sortDirection === 'asc' ? '↑' : '↓')}
                 </th>
                 <th style={{ padding: 12, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '90px' }} onClick={() => onHeaderClick('days_remaining')}>
                   Days Remaining {sortColumn === 'days_remaining' && (sortDirection === 'asc' ? '↑' : '↓')}
@@ -237,14 +244,14 @@ const ExpiringInventory: React.FC<ExpiringInventoryProps> = ({ triggerRefresh })
     <div style={{ maxWidth: 1200, margin: '0 auto', border: '1px solid #ddd', borderRadius: 8, padding: 20 }}>
       <h2 style={{ marginTop: 0, textAlign: 'center' }}>Inventory Approaching Expiration</h2>
 
-      {data.overdue_items.length > 0 && (
+      {safeData.overdue_items.length > 0 && (
         <div style={{ marginBottom: 50, padding: 15, backgroundColor: '#ffebee', border: '2px solid #f44336', borderRadius: 4 }}>
           <h3 style={{ color: '#c62828', marginTop: 0 }}>⚠️ OVERDUE - Past Expiration Date (Not Called Off)</h3>
-          <ExpiringTable items={data.overdue_items} title="" hideTitle={true} sortColumn={sortColumn30} sortDirection={sortDirection30} onHeaderClick={handleHeaderClick30} />
+          <ExpiringTable items={safeData.overdue_items} title="" hideTitle={true} sortColumn={sortColumn30} sortDirection={sortDirection30} onHeaderClick={handleHeaderClick30} />
         </div>
       )}
 
-      <ExpiringTable items={data.expiring_30_days} title="Within 30 Days of Expiration" sortColumn={sortColumn30} sortDirection={sortDirection30} onHeaderClick={handleHeaderClick30} />
+      <ExpiringTable items={safeData.expiring_30_days} title="Within 30 Days of Expiration" sortColumn={sortColumn30} sortDirection={sortDirection30} onHeaderClick={handleHeaderClick30} />
       <div style={{
         height: '1px',
         background: '#1976d2',
@@ -252,7 +259,7 @@ const ExpiringInventory: React.FC<ExpiringInventoryProps> = ({ triggerRefresh })
         maxWidth: '70%',
         width: '100%'
       }}></div>
-      <ExpiringTable items={data.expiring_60_days} title="Within 60 Days of Expiration" sortColumn={sortColumn60} sortDirection={sortDirection60} onHeaderClick={handleHeaderClick60} />
+      <ExpiringTable items={safeData.expiring_60_days} title="Within 60 Days of Expiration" sortColumn={sortColumn60} sortDirection={sortDirection60} onHeaderClick={handleHeaderClick60} />
     </div>
   );
 };

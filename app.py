@@ -720,6 +720,6 @@ def serve_react(path):
     return jsonify({'error': 'File not found'}), 404
 
 if __name__ == '__main__':
-    port = int(os.environ.get('FLASK_PORT', os.environ.get('PORT', 5555)))
+    port = int(os.environ.get('FLASK_PORT', os.environ.get('PORT', 5001)))
     is_production = os.environ.get('FLASK_ENV') == 'production'
     app.run(debug=not is_production, port=port, host='0.0.0.0' if is_production else '127.0.0.1')
