@@ -1091,8 +1091,8 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                       <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '80px' }} onClick={() => handlePoHeaderClick('po_number')}>
                         PO<br/>Number {poSortColumn === 'po_number' && (poSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
-                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '75px' }} onClick={() => handlePoHeaderClick('po_date')}>
-                        PO<br/>Date {poSortColumn === 'po_date' && (poSortDirection === 'asc' ? '↑' : '↓')}
+                      <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'nowrap', width: '90px' }} onClick={() => handlePoHeaderClick('po_date')}>
+                        PO Date {poSortColumn === 'po_date' && (poSortDirection === 'asc' ? '↑' : '↓')}
                       </th>
                       <th style={{ padding: 10, textAlign: 'center', borderBottom: '2px solid #ddd', cursor: 'pointer', whiteSpace: 'normal', width: '75px' }} onClick={() => handlePoHeaderClick('order_qty')}>
                         Order<br/>Qty {poSortColumn === 'order_qty' && (poSortDirection === 'asc' ? '↑' : '↓')}
@@ -1138,7 +1138,7 @@ const SupplierAnalysis: React.FC<SupplierAnalysisProps> = ({ suppliers }) => {
                         <td style={{ padding: 10, textAlign: 'center', borderBottom: '1px solid #eee' }}>
                           {po.po_number}
                         </td>
-                        <td style={{ padding: 10, textAlign: 'center', borderBottom: '1px solid #eee' }}>
+                        <td style={{ padding: 10, textAlign: 'center', borderBottom: '1px solid #eee', whiteSpace: 'nowrap' }}>
                           {po.po_date}
                         </td>
                         <td style={{ padding: 10, textAlign: 'center', borderBottom: '1px solid #eee' }}>
