@@ -459,7 +459,7 @@ def calculate_metrics(report_date, app):
         spend_on_order = 0
         spend_in_transit = 0
         spend_on_hand = 0
-        for item in inventory:
+        for item in snapshots:
             if item.po_quantity and item.po_quantity > 0:
                 unit_price = item.total_po_amount / item.po_quantity
                 spend_on_order += (item.qty_on_order or 0) * unit_price
